@@ -7,6 +7,14 @@ yellow='\033[0;33m'
 plain='\033[0m'
 
 GITHUB_REPO="sartoopjj/thefeed"
+GITLAB_REPO="sartoopjj/thefeed"
+# URL-encoded GitLab project path for /api/v4/projects/:id calls.
+GITLAB_REPO_ENC="sartoopjj%2Fthefeed"
+# Source for release downloads: github, gitlab, or auto.
+#   auto = try GitHub first, fall back to GitLab if GitHub is unreachable
+#          (used while the GitHub account is suspended).
+# Can be overridden with --source <github|gitlab> on the CLI.
+SOURCE="${SOURCE:-auto}"
 INSTALL_DIR="/opt/thefeed"
 DATA_DIR="${INSTALL_DIR}/data"
 SERVICE_FILE="/etc/systemd/system/thefeed-server.service"
@@ -65,21 +73,58 @@ install_base() {
     esac
 }
 
+# Decide which mirror to talk to. Called lazily before any network call.
+# "auto" picks GitHub if api.github.com responds with a non-empty tag_name
+# for the latest release; otherwise falls back to GitLab.
+resolve_source() {
+    if [[ "$SOURCE" == "github" || "$SOURCE" == "gitlab" ]]; then
+        return
+    fi
+    local probe
+    probe=$(curl -Ls --max-time 6 "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null | grep '"tag_name":' | head -1)
+    if [[ -n "$probe" ]]; then
+        SOURCE="github"
+    else
+        SOURCE="gitlab"
+    fi
+    echo -e "Release source: ${green}${SOURCE}${plain}" >&2
+}
+
 get_latest_version() {
+    resolve_source
     local version
-    version=$(curl -Ls "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-    if [[ -z "$version" ]]; then
-        echo -e "${yellow}Trying with IPv4...${plain}" >&2
-        version=$(curl -4 -Ls "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    if [[ "$SOURCE" == "gitlab" ]]; then
+        version=$(curl -Ls "https://gitlab.com/api/v4/projects/${GITLAB_REPO_ENC}/releases?per_page=1" \
+            | sed -E 's/\},\{/}\n{/g' | head -1 \
+            | sed -E 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/')
+        if [[ -z "$version" ]]; then
+            version=$(curl -4 -Ls "https://gitlab.com/api/v4/projects/${GITLAB_REPO_ENC}/releases?per_page=1" \
+                | sed -E 's/\},\{/}\n{/g' | head -1 \
+                | sed -E 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/')
+        fi
+    else
+        version=$(curl -Ls "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        if [[ -z "$version" ]]; then
+            echo -e "${yellow}Trying with IPv4...${plain}" >&2
+            version=$(curl -4 -Ls "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        fi
     fi
     echo "$version"
 }
 
 _fetch_releases() {
+    resolve_source
     local body
-    body=$(curl -Ls "https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=20")
-    if [[ -z "$body" ]]; then
-        body=$(curl -4 -Ls "https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=20")
+    if [[ "$SOURCE" == "gitlab" ]]; then
+        body=$(curl -Ls "https://gitlab.com/api/v4/projects/${GITLAB_REPO_ENC}/releases?per_page=20")
+        if [[ -z "$body" ]]; then
+            body=$(curl -4 -Ls "https://gitlab.com/api/v4/projects/${GITLAB_REPO_ENC}/releases?per_page=20")
+        fi
+    else
+        body=$(curl -Ls "https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=20")
+        if [[ -z "$body" ]]; then
+            body=$(curl -4 -Ls "https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=20")
+        fi
     fi
     echo "$body"
 }
@@ -89,13 +134,30 @@ _split_releases() {
     _fetch_releases | tr -d '\n' | sed 's/{/\n{/g'
 }
 
+# Decide whether a release JSON object (one line) is a pre-release.
+# GitHub exposes a boolean field; GitLab does not, so on GitLab we fall back
+# to the tag-name convention (anything with a hyphen, e.g. v1.0.0-rc1).
+_is_pre_line() {
+    local line="$1" tag
+    if echo "$line" | grep -qE '"prerelease":[[:space:]]*true'; then
+        return 0
+    fi
+    if [[ "$SOURCE" == "gitlab" ]]; then
+        tag=$(echo "$line" | sed -E 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/')
+        [[ "$tag" == *-* ]] && return 0
+    fi
+    return 1
+}
+
 get_latest_prerelease() {
-    # GitHub's pretty-printed JSON has "prerelease": true (with space). After
-    # tr -d '\n' the spaces stay, so the grep needs to allow whitespace.
-    _split_releases \
-        | grep -E '"prerelease":[[:space:]]*true' \
-        | head -1 \
-        | sed -E 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/'
+    local line
+    while IFS= read -r line; do
+        case "$line" in *'"tag_name"'*) ;; *) continue ;; esac
+        if _is_pre_line "$line"; then
+            echo "$line" | sed -E 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/'
+            return
+        fi
+    done < <(_split_releases)
 }
 
 list_versions() {
@@ -107,7 +169,7 @@ list_versions() {
             *) continue ;;
         esac
         tag=$(echo "$line" | sed -E 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/')
-        if echo "$line" | grep -qE '"prerelease":[[:space:]]*true'; then
+        if _is_pre_line "$line"; then
             label="[pre-release]"
         else
             label="[stable]"
@@ -120,20 +182,28 @@ list_versions() {
 }
 
 download_binary() {
+    resolve_source
     local version="$1"
     local arch_name
     arch_name=$(arch)
     local binary_name="thefeed-server-linux-${arch_name}"
-    local url="https://github.com/${GITHUB_REPO}/releases/download/${version}/${binary_name}"
+    local url
+    if [[ "$SOURCE" == "gitlab" ]]; then
+        # GitLab Release direct-asset URL — same path the CI registers via
+        # release-cli's --assets-link.
+        url="https://gitlab.com/${GITLAB_REPO}/-/releases/${version}/downloads/${binary_name}"
+    else
+        url="https://github.com/${GITHUB_REPO}/releases/download/${version}/${binary_name}"
+    fi
 
-    echo -e "${green}Downloading thefeed-server ${version} for linux/${arch_name}...${plain}"
+    echo -e "${green}Downloading thefeed-server ${version} for linux/${arch_name} from ${SOURCE}...${plain}"
     mkdir -p "$INSTALL_DIR"
 
     curl -4fLo "${INSTALL_DIR}/thefeed-server" "$url"
     if [[ $? -ne 0 ]]; then
         echo -e "${red}Failed to download binary from:${plain}"
         echo -e "${red}  ${url}${plain}"
-        echo -e "${yellow}Please check that the version exists and your server can reach GitHub${plain}"
+        echo -e "${yellow}Please check that the version exists and your server can reach the ${SOURCE} mirror${plain}"
         exit 1
     fi
 
@@ -798,6 +868,8 @@ show_help() {
     echo -e "  ${green}<tag>${plain}                  Positional form, e.g.  bash install.sh v1.0.0"
     echo -e "  ${green}--pre${plain}                  Install the latest pre-release (beta/rc)"
     echo -e "  ${green}--list${plain}                 List recent releases with stable/pre labels"
+    echo -e "  ${green}--source <name>${plain}        Pick release mirror: github | gitlab | auto (default: auto)"
+    echo -e "  ${green}--github${plain} / ${green}--gitlab${plain}     Shortcut for --source github / --source gitlab"
     echo -e "  ${green}--login${plain}                Re-authenticate with Telegram"
     echo -e "  ${green}--uninstall${plain}            Remove thefeed"
     echo -e "  ${green}--help${plain}                 Show this help"
@@ -812,11 +884,15 @@ show_help() {
     echo -e "  Reads public Telegram channels without needing Telegram credentials."
     echo -e "  Safer because no phone number or API keys are stored on the server."
     echo ""
-    echo -e "Quick commands:"
+    echo -e "Quick commands (GitHub mirror):"
     echo -e "  Install/Update:  ${blue}curl -Ls https://raw.githubusercontent.com/${GITHUB_REPO}/main/scripts/install.sh | sudo bash${plain}"
     echo -e "  Install beta:    ${blue}curl -Ls https://raw.githubusercontent.com/${GITHUB_REPO}/main/scripts/install.sh | sudo bash -s -- --pre${plain}"
     echo -e "  Roll back:       ${blue}curl -Ls https://raw.githubusercontent.com/${GITHUB_REPO}/main/scripts/install.sh | sudo bash -s -- --version v0.9.2${plain}"
     echo -e "  Uninstall:       ${blue}curl -Ls https://raw.githubusercontent.com/${GITHUB_REPO}/main/scripts/install.sh | sudo bash -s -- --uninstall${plain}"
+    echo ""
+    echo -e "Quick commands (GitLab mirror — use while the GitHub account is unavailable):"
+    echo -e "  Install/Update:  ${blue}curl -Ls https://gitlab.com/${GITLAB_REPO}/-/raw/main/scripts/install.sh | sudo bash -s -- --gitlab${plain}"
+    echo -e "  Install beta:    ${blue}curl -Ls https://gitlab.com/${GITLAB_REPO}/-/raw/main/scripts/install.sh | sudo bash -s -- --gitlab --pre${plain}"
 }
 
 # Main
@@ -840,6 +916,21 @@ while [[ $# -gt 0 ]]; do
             ACTION="list"; shift ;;
         --pre|--prerelease|--beta)
             REQUEST_CHANNEL="pre"; shift ;;
+        --source)
+            shift
+            if [[ -z "${1:-}" ]]; then
+                echo -e "${red}--source requires one of: github, gitlab, auto${plain}"
+                exit 1
+            fi
+            case "$1" in github|gitlab|auto) SOURCE="$1" ;; *) echo -e "${red}invalid --source: $1${plain}"; exit 1 ;; esac
+            shift ;;
+        --source=*)
+            case "${1#*=}" in github|gitlab|auto) SOURCE="${1#*=}" ;; *) echo -e "${red}invalid --source: ${1#*=}${plain}"; exit 1 ;; esac
+            shift ;;
+        --github)
+            SOURCE="github"; shift ;;
+        --gitlab)
+            SOURCE="gitlab"; shift ;;
         --version|-v)
             shift
             if [[ -z "${1:-}" ]]; then

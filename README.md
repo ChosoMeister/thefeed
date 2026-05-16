@@ -6,10 +6,14 @@ DNS-based feed reader for Telegram channels and public X accounts. Designed for 
 
 ## Download
 
-- **[Latest release](https://github.com/sartoopjj/thefeed/releases/latest)** — server / client binaries for every platform, plus Android APKs.
-- **Server one-liner** (Linux + systemd):
+- **Latest release** — server / client binaries for every platform, plus Android APKs. Pick the mirror that's reachable for you: [GitLab](https://gitlab.com/sartoopjj/thefeed/-/releases) / [GitHub](https://github.com/sartoopjj/thefeed/releases/latest).
+- **Server one-liner** (Linux + systemd) — pick the mirror that works for you:
   ```bash
+  # GitHub mirror
   sudo bash -c "$(curl -Ls https://raw.githubusercontent.com/sartoopjj/thefeed/main/scripts/install.sh)"
+
+  # GitLab mirror (use this while the GitHub account is unavailable)
+  sudo bash -c "$(curl -Ls https://gitlab.com/sartoopjj/thefeed/-/raw/main/scripts/install.sh)" -- --gitlab
   ```
 - **Android APK** (Android 7.0+): pick `arm64-v8a` for any phone newer than ~2017, `armeabi-v7a` for older 32-bit-only devices.
 - **iOS** (iOS 14+): App Store build planned. Source under [ios/](ios/) — see [iOS development](#ios-development) below.
@@ -127,10 +131,16 @@ Thank you for your support ❤️
 
 ## Quick Install (Server)
 
-One-line install (downloads latest release from GitHub)
+The installer can fetch binaries from either the GitHub or the GitLab mirror.
+By default it auto-detects (tries GitHub first, falls back to GitLab); pass
+`--gitlab` to force GitLab when the GitHub account is unavailable.
 
 ```bash
+# GitHub mirror
 sudo bash -c "$(curl -Ls https://raw.githubusercontent.com/sartoopjj/thefeed/main/scripts/install.sh)"
+
+# GitLab mirror
+sudo bash -c "$(curl -Ls https://gitlab.com/sartoopjj/thefeed/-/raw/main/scripts/install.sh)" -- --gitlab
 ```
 
 Or manually:
@@ -138,7 +148,9 @@ Or manually:
 ```bash
 # On your server (Linux with systemd)
 curl -Ls https://raw.githubusercontent.com/sartoopjj/thefeed/main/scripts/install.sh -o install.sh
-sudo bash install.sh
+sudo bash install.sh                # auto: GitHub, then GitLab fallback
+sudo bash install.sh --gitlab       # force GitLab mirror
+sudo bash install.sh --source github
 ```
 
 The script will:

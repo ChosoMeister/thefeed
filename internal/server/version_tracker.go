@@ -10,6 +10,9 @@ import (
 	"time"
 )
 
+// TODO: dual-source. Mirror at gitlab.com/sartoopjj/thefeed; fall back to
+// /api/v4/projects/sartoopjj%2Fthefeed/releases?per_page=1 — same pattern
+// as scripts/install.sh resolve_source().
 const latestReleaseURL = "https://api.github.com/repos/sartoopjj/thefeed/releases/latest"
 
 type githubRelease struct {

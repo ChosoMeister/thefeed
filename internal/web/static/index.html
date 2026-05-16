@@ -3136,7 +3136,7 @@
       <div class="sidebar-footer">
         <a href="https://t.me/networkti" target="_blank" data-i18n="telegram">Telegram</a>
         &middot;
-        <a href="https://github.com/sartoopjj/thefeed" target="_blank" data-i18n="github">GitHub</a>
+        <a href="#" onclick="event.preventDefault();openSource()" data-i18n="source_code">Source code</a>
         &middot;
         <a href="#" onclick="event.preventDefault();openDonate()" data-i18n="donate">Donate</a>
         &middot;
@@ -3222,6 +3222,23 @@
       <div class="donate-thanks" data-i18n="donate_thanks" dir="auto">Thanks for your support ❤️</div>
       <div style="margin-top:16px;text-align:end">
         <button class="btn btn-primary" onclick="closeDonate()" data-i18n="close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SOURCE CODE MODAL -->
+  <div class="modal-overlay" id="sourceModal" onclick="if(event.target===this)closeSource()">
+    <div class="modal" style="max-width:440px">
+      <h2 data-i18n="source_code">Source code</h2>
+      <div data-i18n="source_body" style="margin-bottom:12px;color:var(--text-dim);font-size:13px">
+        thefeed is open source. You can browse or clone the repository from either mirror:
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <a class="btn btn-outline" href="https://gitlab.com/sartoopjj/thefeed" target="_blank" rel="noopener" dir="ltr" style="text-align:left;justify-content:flex-start">GitLab — gitlab.com/sartoopjj/thefeed</a>
+        <a class="btn btn-outline" href="https://github.com/sartoopjj/thefeed" target="_blank" rel="noopener" dir="ltr" style="text-align:left;justify-content:flex-start">GitHub — github.com/sartoopjj/thefeed</a>
+      </div>
+      <div style="margin-top:16px;text-align:end">
+        <button class="btn btn-primary" onclick="closeSource()" data-i18n="close">Close</button>
       </div>
     </div>
   </div>
@@ -3914,7 +3931,8 @@
         scanner_preset_active: 'ریزالورهای پیش‌فرض بارگذاری شد',
         privacy_policy: 'حریم خصوصی',
         telegram: 'تلگرام',
-        github: 'گیت‌هاب',
+        source_code: 'سورس کد',
+        source_body: 'thefeed یک پروژه‌ متن‌بازه. می‌تونید سورس کد رو از هر کدوم از آینه‌های زیر ببینید یا کلون کنید:',
         donate: 'حمایت مالی',
         donate_body: 'برای حمایت از من می‌تونید مبلغ دلخواه‌تون رو به صورت <b>USDT</b> یا <b>USDC</b> روی شبکه‌های زیر بفرستید: <ul style="margin:8px 0 12px 0;padding-inline-start:20px"><li>Polygon</li><li>BNB Chain</li></ul>',
         wallet_address: 'آدرس ولت',
@@ -4170,7 +4188,8 @@
         scanner_preset_active: 'Default resolvers loaded',
         privacy_policy: 'Privacy',
         telegram: 'Telegram',
-        github: 'GitHub',
+        source_code: 'Source code',
+        source_body: 'thefeed is open source. You can browse or clone the repository from either mirror:',
         donate: 'Donate',
         donate_body: 'Send any amount in <b>USDT</b> or <b>USDC</b> on: <ul style="margin:8px 0 12px 0;padding-inline-start:20px"><li>Polygon</li><li>BNB Chain</li></ul>',
         wallet_address: 'Wallet address',
@@ -8133,6 +8152,8 @@
     // ===== DONATE MODAL =====
     function openDonate() { document.getElementById('donateModal').classList.add('active'); }
     function closeDonate() { document.getElementById('donateModal').classList.remove('active'); }
+    function openSource() { document.getElementById('sourceModal').classList.add('active'); }
+    function closeSource() { document.getElementById('sourceModal').classList.remove('active'); }
     function copyDonateAddr() {
       var el = document.getElementById('donateAddr');
       var v = (el.dataset.full || el.textContent).trim();
