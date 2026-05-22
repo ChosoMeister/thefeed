@@ -81,29 +81,15 @@ android {
     //   ./gradlew assembleRelease                       → 4 per-ABI split APKs
     //   ./gradlew -PuniversalBuild=true assembleRelease → 1 universal APK
     //
-    // The universal omits x86 (32-bit Intel) — no real consumer devices
-    // exist that need it, so shipping it inside the universal would
-    // just bloat the download for everyone. Users who actually need
-    // 32-bit Intel can grab the dedicated x86 split.
+    // The universal bundles all 4 ABIs so even older 32-bit Intel
+    // devices install cleanly. Stripped libgojni.so is small enough
+    // (~5–6 MB per ABI) that a 4-ABI universal stays around 22–24 MB.
     splits {
         abi {
             enable !project.hasProperty('universalBuild')
             reset()
             include 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
             universalApk false
-        }
-    }
-
-    // In universal-build mode, splits are disabled so gradle produces a
-    // single fat APK containing every .so from the AAR. Strip x86 here
-    // so the universal stays slim. The standalone x86 split (produced
-    // by the splits-mode pass) is unaffected because packagingOptions
-    // only takes effect during this gradle invocation.
-    if (project.hasProperty('universalBuild')) {
-        packagingOptions {
-            jniLibs {
-                excludes += ['lib/x86/*.so']
-            }
         }
     }
 

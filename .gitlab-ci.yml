@@ -596,7 +596,7 @@ release:
       | FreeBSD | amd64 | [server-سرور](${DL_BASE}/thefeed-server-freebsd-amd64) / [client-کلاینت](${DL_BASE}/thefeed-client-${VERSION}-freebsd-amd64) |
       | FreeBSD | arm64 | [server-سرور](${DL_BASE}/thefeed-server-freebsd-arm64) / [client-کلاینت](${DL_BASE}/thefeed-client-${VERSION}-freebsd-arm64) |
       | Windows | amd64 | [server-سرور](${DL_BASE}/thefeed-server-windows-amd64.exe) / [client-کلاینت](${DL_BASE}/thefeed-client-${VERSION}-windows-amd64.exe) |
-      | Android | universal (arm + arm64 + x86_64, **recommended**) | [thefeed-android-${VERSION}-universal.apk - اندروید (یونیورسال، توصیه‌شده)](${DL_BASE}/thefeed-android-${VERSION}-universal.apk) |
+      | Android | universal (all ABIs, **recommended**) | [thefeed-android-${VERSION}-universal.apk - اندروید (یونیورسال، توصیه‌شده)](${DL_BASE}/thefeed-android-${VERSION}-universal.apk) |
       | Android | arm64-v8a (modern phones, smaller) | [thefeed-android-${VERSION}-arm64-v8a.apk - اندروید (گوشی‌های جدید)](${DL_BASE}/thefeed-android-${VERSION}-arm64-v8a.apk) |
       | Android | armeabi-v7a (older 32-bit phones) | [thefeed-android-${VERSION}-armeabi-v7a.apk - اندروید (دستگاه‌های قدیمی‌تر)](${DL_BASE}/thefeed-android-${VERSION}-armeabi-v7a.apk) |
       | Android | x86_64 (Chromebooks, emulators, WSA) | [thefeed-android-${VERSION}-x86_64.apk - اندروید (کروم‌بوک، شبیه‌ساز، WSA)](${DL_BASE}/thefeed-android-${VERSION}-x86_64.apk) |
