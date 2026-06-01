@@ -1,0 +1,153 @@
+    /* ===== MOBILE ===== */
+    .header-kebab {
+      position: relative;
+      display: none
+    }
+
+    .header-kebab-menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 4px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, .2);
+      min-width: 150px;
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+      overflow: hidden
+    }
+
+    .header-kebab-menu.open {
+      display: flex
+    }
+
+    .header-kebab-menu button {
+      width: 100%;
+      padding: 11px 16px;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: left
+    }
+
+    .header-kebab-menu button:hover {
+      background: var(--hover)
+    }
+
+    @media(max-width:768px) {
+
+      /* On mobile, the body's safe-area padding covers iOS notch/home bar.
+         Inside, the app fills the remaining space. */
+      .app {
+        position: relative;
+        overflow: hidden;
+        height: 100%
+      }
+
+      .sidebar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        z-index: 2;
+        transform: translateX(0);
+        transition: transform .25s ease
+      }
+
+      .chat-area {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1;
+        transform: translateX(100%);
+        transition: transform .25s ease
+      }
+
+      .app.chat-open .sidebar {
+        transform: translateX(-100%)
+      }
+
+      .app.chat-open .chat-area {
+        transform: translateX(0)
+      }
+
+      .back-btn {
+        display: flex
+      }
+
+      .header-search-btn,
+      .header-export-btn {
+        display: none
+      }
+
+      .header-kebab {
+        display: flex
+      }
+
+      .msg {
+        max-width: 90%
+      }
+
+      /* Modals on mobile become bottom sheets — make sure they reach the
+         visible bottom edge and aren't hidden behind the browser nav bar
+         or iOS home indicator. */
+      .modal-overlay {
+        height: 100dvh
+      }
+
+      .modal {
+        width: 100%;
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        margin-top: auto;
+        align-self: flex-end;
+        padding-bottom: max(20px, calc(20px + env(safe-area-inset-bottom)))
+      }
+
+      .modal-overlay.active {
+        align-items: flex-end
+      }
+
+      /* Add a little breathing room at the very bottom of the messages list
+         and send panel on mobile so the last message / input isn't crammed
+         against the browser nav bar (when safe-area-inset is 0). */
+      .messages {
+        padding-bottom: max(10px, env(safe-area-inset-bottom))
+      }
+    }
+
+    /* When the on-screen keyboard or browser nav bars pop up on mobile, the
+       visual viewport may shrink. Force the app shell to follow it. */
+    @supports (height: 100dvh) {
+
+      html,
+      body {
+        height: 100dvh
+      }
+    }
+
+    ::-webkit-scrollbar {
+      width: 4px
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px
+    }

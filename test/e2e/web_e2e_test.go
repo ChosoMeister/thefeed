@@ -469,10 +469,7 @@ func TestE2E_WebAPI_GlobalAuth(t *testing.T) {
 func TestE2E_NewMsgSeparator_TimestampBased(t *testing.T) {
 	base, _ := startWebServer(t)
 
-	resp := getJSON(t, base+"/")
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	html := string(body)
+	html := fetchFrontendSource(t, base)
 
 	// The separator must compare against timestamp, not message ID.
 	// Look for the timestamp-based lastSeen check in the new-msg separator logic.
@@ -574,13 +571,7 @@ func TestE2E_ActiveResolversAPI(t *testing.T) {
 func TestE2E_WebUI_NewFeatures(t *testing.T) {
 	base, _ := startWebServer(t)
 
-	resp, err := http.Get(base + "/")
-	if err != nil {
-		t.Fatalf("GET /: %v", err)
-	}
-	defer resp.Body.Close()
-	bodyBytes, _ := io.ReadAll(resp.Body)
-	html := string(bodyBytes)
+	html := fetchFrontendSource(t, base)
 
 	checks := map[string]string{
 		"message search bar":      "msgSearchBar",

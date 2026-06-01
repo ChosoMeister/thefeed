@@ -1,0 +1,99 @@
+    @font-face {
+      font-family: 'Vazirmatn';
+      src: url('/static/Vazirmatn-Regular.woff2') format('woff2');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap
+    }
+
+    :root {
+      --bg: #17212b;
+      --bg2: #0e1621;
+      --sidebar-bg: #0e1621;
+      --surface: #182533;
+      --surface2: #1d2b3a;
+      --border: #1c2938;
+      --accent: #3390ec;
+      --accent-hover: #2b7dd6;
+      --text: #f5f5f5;
+      --text-dim: #8b9eb0;
+      --success: #4fae4e;
+      --error: #e53935;
+      --send-color: #3390ec;
+      --msg-in: #182533;
+      --msg-out: #2b5278;
+      --hover: #1e2c3a;
+      --font-size: 14px;
+      --safe-top: env(safe-area-inset-top);
+      --safe-right: env(safe-area-inset-right);
+      --safe-bottom: env(safe-area-inset-bottom);
+      --safe-left: env(safe-area-inset-left);
+    }
+
+    /* Android WebView lays the page out below the system bars and reports
+       phantom safe-area insets — zero them out so we don't double-pad. */
+    html.is-android-app {
+      --safe-top: 0px;
+      --safe-right: 0px;
+      --safe-bottom: 0px;
+      --safe-left: 0px;
+    }
+
+    :root[data-theme="light"] {
+      --bg: #ffffff;
+      --bg2: #f0f2f5;
+      --sidebar-bg: #f0f2f5;
+      --surface: #ffffff;
+      --surface2: #e8eaed;
+      --border: #d3d6da;
+      --accent: #3390ec;
+      --accent-hover: #2b7dd6;
+      --text: #1a1a1a;
+      --text-dim: #707579;
+      --success: #4fae4e;
+      --error: #e53935;
+      --send-color: #3390ec;
+      --msg-in: #ffffff;
+      --msg-out: #d3eafe;
+      --hover: #e8eaed;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    /* iOS Safari / WKWebView "automatic text inflation" inflates body text
+       to its own heuristic size and ignores our explicit font-size, so the
+       Settings → Font size slider appears to do nothing on iOS. Disabling
+       text-size-adjust lets our --font-size variable actually take effect. */
+    html {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+
+    body {
+      font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;
+      background: var(--bg2);
+      color: var(--text);
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      font-size: var(--font-size);
+      padding-top: var(--safe-top);
+      padding-bottom: var(--safe-bottom);
+      padding-left: var(--safe-left);
+      padding-right: var(--safe-right)
+    }
+
+    button {
+      cursor: pointer;
+      font-family: inherit
+    }
+
+    input,
+    textarea,
+    select {
+      font-family: inherit
+    }

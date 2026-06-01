@@ -1,6 +1,3 @@
-// Optional, removable backup feed UI. All globals here are namespaced
-// with `tm` / `telemirror` so removing this file (plus the markup block
-// in index.html) drops the feature without touching anything else.
 (function () {
   var tmChannels = [];
   var tmActive = '';
@@ -168,8 +165,8 @@
   // look identical. Mirrors what Telegram's web client does.
   function tmAvatarColor(name) {
     var palette = ['#e57373', '#f06292', '#ba68c8', '#9575cd', '#7986cb',
-                   '#64b5f6', '#4fc3f7', '#4dd0e1', '#4db6ac', '#81c784',
-                   '#aed581', '#dce775', '#ffd54f', '#ffb74d', '#ff8a65'];
+      '#64b5f6', '#4fc3f7', '#4dd0e1', '#4db6ac', '#81c784',
+      '#aed581', '#dce775', '#ffd54f', '#ffb74d', '#ff8a65'];
     var h = 0;
     for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
     return palette[h % palette.length];
@@ -237,8 +234,8 @@
     var sb = document.getElementById('tmSidebar');
     if (sb) sb.classList.remove('open');
     var steps = (tmHistoryPushed ? 1 : 0)
-              + (tmChannelViewPushed ? 1 : 0)
-              + (tmLightboxPushed ? 1 : 0);
+      + (tmChannelViewPushed ? 1 : 0)
+      + (tmLightboxPushed ? 1 : 0);
     tmHistoryPushed = false;
     tmChannelViewPushed = false;
     tmLightboxPushed = false;
@@ -323,8 +320,8 @@
     }
     content.innerHTML =
       '<div class="tm-first-hint">'
-      +   '<div class="tm-first-hint-arrow">' + tmEsc(icon) + '</div>'
-      +   '<div class="tm-first-hint-text">' + tmEsc(msg) + '</div>'
+      + '<div class="tm-first-hint-arrow">' + tmEsc(icon) + '</div>'
+      + '<div class="tm-first-hint-text">' + tmEsc(msg) + '</div>'
       + '</div>';
   }
 
@@ -337,7 +334,7 @@
       html += '<div class="tm-channel-item' + active + '" data-u="' + tmEscAttr(c.username) + '" onclick="tmSelectFromClick(this.dataset.u)">'
         + tmAvatarHTML(c.username, c.username, 40)
         + '<div class="tm-channel-item-meta">'
-        +   '<div class="tm-channel-item-name">' + tmEsc(c.username) + (c.pinned ? ' <span class="tm-pin">📌</span>' : '') + '</div>'
+        + '<div class="tm-channel-item-name">' + tmEsc(c.username) + (c.pinned ? ' <span class="tm-pin">📌</span>' : '') + '</div>'
         + '</div>';
       if (!c.pinned) {
         html += '<button class="tm-x" data-u="' + tmEscAttr(c.username) + '" onclick="event.stopPropagation();tmRemove(this.dataset.u)">&times;</button>';
@@ -445,15 +442,15 @@
       overlay.className = 'tm-confirm-overlay';
       overlay.innerHTML =
         '<div class="tm-confirm-box">'
-        +   '<p class="tm-confirm-msg"></p>'
-        +   '<div class="tm-confirm-actions">'
-        +     '<button class="btn btn-flat" data-tm-no></button>'
-        +     '<button class="btn btn-primary" data-tm-yes></button>'
-        +   '</div>'
+        + '<p class="tm-confirm-msg"></p>'
+        + '<div class="tm-confirm-actions">'
+        + '<button class="btn btn-flat" data-tm-no></button>'
+        + '<button class="btn btn-primary" data-tm-yes></button>'
+        + '</div>'
         + '</div>';
       overlay.querySelector('.tm-confirm-msg').textContent = message;
       overlay.querySelector('[data-tm-yes]').textContent = yesText || tmI18n('ok', 'OK');
-      overlay.querySelector('[data-tm-no]').textContent  = noText  || tmI18n('cancel', 'Cancel');
+      overlay.querySelector('[data-tm-no]').textContent = noText || tmI18n('cancel', 'Cancel');
       var done = function (val) {
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
         resolve(val);
@@ -500,10 +497,10 @@
     if (ch.description) {
       // Clearly mark as channel info, not a post.
       html += '<div class="tm-channel-bio">'
-        +   '<div class="tm-channel-bio-label">'
-        +     tmEsc(tmI18n('telemirror_about', 'About this channel'))
-        +   '</div>'
-        +   '<div class="tm-channel-bio-body">' + ch.description + '</div>'
+        + '<div class="tm-channel-bio-label">'
+        + tmEsc(tmI18n('telemirror_about', 'About this channel'))
+        + '</div>'
+        + '<div class="tm-channel-bio-body">' + ch.description + '</div>'
         + '</div>';
     }
     // Load-older button if we have at least one post — anchored to the
@@ -511,9 +508,9 @@
     var oldestId = (posts[0] && posts[0].id || '').split('/').pop();
     if (oldestId) {
       html += '<div class="tm-load-older-row">'
-        +   '<button class="tm-load-older" onclick="tmLoadOlder(\'' + tmEscAttr(oldestId) + '\', this)">'
-        +     tmEsc(tmI18n('telemirror_load_older', 'Load older posts'))
-        +   '</button>'
+        + '<button class="tm-load-older" onclick="tmLoadOlder(\'' + tmEscAttr(oldestId) + '\', this)">'
+        + tmEsc(tmI18n('telemirror_load_older', 'Load older posts'))
+        + '</button>'
         + '</div>';
     }
     // Stash plain text for each post in a JS map keyed by id, so the
@@ -547,7 +544,7 @@
 
       if (p.forward && p.forward.author) {
         var fwdLabel = tmI18n('telemirror_forwarded_from', 'Forwarded from');
-        var fwdName  = tmEsc(p.forward.author);
+        var fwdName = tmEsc(p.forward.author);
         if (p.forward.url) {
           fwdName = '<a href="' + tmEscAttr(p.forward.url) + '" target="_blank" rel="noopener noreferrer">'
             + fwdName + '</a>';
@@ -665,10 +662,10 @@
         + ' style="cursor:zoom-in"'
         + ' onerror="this.parentNode.classList.add(\'tm-photo-failed\')">'
         + '<a class="tm-photo-dl" href="' + tmEscAttr(m.thumb) + '"'
-        +   ' download="' + tmEscAttr(fname) + '"'
-        +   ' data-fname="' + tmEscAttr(fname) + '"'
-        +   ' title="' + tmEscAttr(tmI18n('download', 'Download')) + '"'
-        +   ' onclick="event.stopPropagation();return tmDownloadPhoto(this, event)">⬇</a>'
+        + ' download="' + tmEscAttr(fname) + '"'
+        + ' data-fname="' + tmEscAttr(fname) + '"'
+        + ' title="' + tmEscAttr(tmI18n('download', 'Download')) + '"'
+        + ' onclick="event.stopPropagation();return tmDownloadPhoto(this, event)">⬇</a>'
         + '</div>';
     }
     if (m.type === 'video') {
