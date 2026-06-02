@@ -598,6 +598,9 @@ func TestE2E_WebUI_NewFeatures(t *testing.T) {
 		"resolvers badge":         "resolversBadge",
 		"normalize function":      "normalizeArabicPersian",
 		"settings tab switcher":   "switchSettingsTab",
+		"unread count badge":      "channelUnreadBadge",
+		"unread count cap":        "UNREAD_CAP",
+		"server-side seen sync":   "syncSeenFromServer",
 	}
 	for name, needle := range checks {
 		if !strings.Contains(html, needle) {

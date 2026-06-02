@@ -2,6 +2,9 @@
 async function loadChannels() {
   try {
     var r = await fetch('/api/channels'); channels = await r.json(); if (!channels) channels = [];
+    // Pull server-persisted seen-state once so unread counts survive the
+    // loopback port changing (localStorage is wiped when the origin does).
+    await syncSeenFromServer();
     // Initialise NEW-badge baseline for any channel we've never seen
     // before. Without this the badge can never fire on a channel the
     // user hasn't manually opened yet (since channelHasNew suppresses
@@ -23,6 +26,8 @@ async function loadChannels() {
     if (baselineDirty) {
       saveSeenMap('thefeed_seen_ids', previousMsgIDs);
       saveSeenMap('thefeed_seen_hashes', previousContentHashes);
+      // Persist new baselines server-side too (server only fills gaps).
+      pushSeenBulk(previousMsgIDs, previousContentHashes);
     }
     await loadAutoUpdate();
     renderChannels(); updateSendPanel();
@@ -113,9 +118,8 @@ function _renderChannelsNow() {
         var num = ui + 1;
         existingItems[ui].classList.toggle('active', num === selectedChannel);
         var chNm = channels[ui].Name || channels[ui].name || '';
-        var showBadge = channelHasNew(channels[ui]) && num !== selectedChannel;
         var previewEl = existingItems[ui].querySelector('.ch-preview');
-        if (previewEl) previewEl.innerHTML = showBadge ? '<span class="ch-badge">NEW</span>' : '';
+        if (previewEl) previewEl.innerHTML = (num !== selectedChannel) ? channelUnreadBadge(channels[ui]) : '';
         var autoBtn = existingItems[ui].querySelector('.ch-autoupdate');
         if (autoBtn) {
           var key = chNm.replace(/^@/, '').trim();
@@ -178,7 +182,7 @@ function _renderChannelsNow() {
       var avatarText = (avatarName || '?').charAt(0).toUpperCase();
       var active = num2 === selectedChannel ? ' active' : '';
       var chNm2 = e.ch.Name || e.ch.name || '';
-      var badge = (channelHasNew(e.ch) && num2 !== selectedChannel) ? '<span class="ch-badge">NEW</span>' : '';
+      var badge = (num2 !== selectedChannel) ? channelUnreadBadge(e.ch) : '';
       h += '<div class="ch-item' + active + '" data-name="' + escAttr(handle) + '" data-label="' + escAttr(label) + '" onclick="selectChannel(' + num2 + ')">';
       // X channels: e.ch.Name is "x/<handle>" (category prefix);
       // strip before re-attaching the bundle's "x:" prefix.
@@ -234,6 +238,22 @@ function channelHasNew(ch) {
   if (seenHash !== undefined && hash !== 0 && hash !== seenHash) return true;
   if (ct !== 2 && seenID > 0 && lastID > seenID) return true;
   return false;
+}
+
+// channelUnreadBadge returns the inner HTML for a channel's list badge, or
+// '' for none. Telegram channels show a numeric unread count (LastMsgID
+// minus the last-seen ID — message IDs are sequential), capped as "99+".
+// X/Twitter channels keep the boolean "NEW" label because their IDs aren't
+// sequential, so a real count can't be derived.
+var UNREAD_CAP = 99;
+function channelUnreadBadge(ch) {
+  if (!channelHasNew(ch)) return '';
+  var ct = ch.ChatType || ch.chatType || 0;
+  if (ct === 2) return '<span class="ch-badge">NEW</span>';
+  var name = ch.Name || ch.name || '';
+  var n = (ch.LastMsgID || ch.lastMsgID || 0) - (previousMsgIDs[name] || 0);
+  if (n <= 0) return '<span class="ch-badge">NEW</span>'; // content changed (edit) but no new message
+  return '<span class="ch-badge">' + (n > UNREAD_CAP ? (UNREAD_CAP + '+') : n) + '</span>';
 }
 
 async function selectChannel(num) {

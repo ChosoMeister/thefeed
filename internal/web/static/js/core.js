@@ -23,6 +23,78 @@ function rememberSeen(name, lastID, contentHash) {
   previousContentHashes[name] = contentHash || 0;
   saveSeenMap('thefeed_seen_ids', previousMsgIDs);
   saveSeenMap('thefeed_seen_hashes', previousContentHashes);
+  pushSeen(name, lastID || 0, contentHash || 0);
+}
+// ----- server-side seen-state -----
+// The seen maps used to live only in localStorage, which the WebView wipes
+// whenever the loopback port changes between launches (Android/iOS), so the
+// unread counts reset to nonsense. We mirror them to disk via /api/seen.
+var seenServerSynced = false;
+// seenLocalOnly is set when the backend reports shared/multi-user mode
+// (--shared). Then seen-state stays in this browser's localStorage and is
+// never read from or written to the server, so users sharing one backend
+// don't clear each other's unread counts.
+var seenLocalOnly = false;
+// syncSeenFromServer pulls the disk copy once at startup and lets it win
+// over localStorage (the server copy survives the loopback port changing).
+async function syncSeenFromServer() {
+  if (seenServerSynced) return;
+  seenServerSynced = true;
+  var d;
+  try {
+    var r = await fetch('/api/seen');
+    if (!r.ok) return;
+    d = await r.json();
+  } catch (e) { return; }
+  if (d && d.shared) {
+    // Shared/multi-user backend: keep per-browser localStorage as-is — don't
+    // wipe it, don't merge server state, don't push (pushSeen* also bail).
+    seenLocalOnly = true;
+    return;
+  }
+  // One-time cleanup: older builds kept seen-state only in localStorage. We
+  // deliberately do NOT migrate that to the server (it's origin-scoped and
+  // can be stale) — we just drop it so it can't seed the server with wrong
+  // counts. The server is the source of truth from here on; with nothing
+  // stored, channels re-baseline to "all read" on next load, like Telegram.
+  // TODO(v1): remove this one-time localStorage cleanup once every client
+  // has launched at least once on a build that persists seen-state to disk.
+  try {
+    if (!localStorage.getItem('thefeed_seen_cleared')) {
+      localStorage.removeItem('thefeed_seen_ids');
+      localStorage.removeItem('thefeed_seen_hashes');
+      localStorage.setItem('thefeed_seen_cleared', '1');
+      previousMsgIDs = {};
+      previousContentHashes = {};
+    }
+  } catch (e) { }
+  var sIds = (d && d.seenIds) || {}, sH = (d && d.seenHashes) || {};
+  for (var k in sIds) previousMsgIDs[k] = sIds[k];
+  for (var k2 in sH) previousContentHashes[k2] = sH[k2];
+  saveSeenMap('thefeed_seen_ids', previousMsgIDs);
+  saveSeenMap('thefeed_seen_hashes', previousContentHashes);
+}
+// pushSeen persists a single channel's read marker (fire-and-forget).
+function pushSeen(name, id, hash) {
+  if (!name || seenLocalOnly) return;
+  try {
+    fetch('/api/seen', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, id: id || 0, hash: hash || 0 }), keepalive: true
+    }).catch(function () { });
+  } catch (e) { }
+}
+// pushSeenBulk seeds new channel baselines server-side. The server only
+// fills entries it lacks, so a real read marker is never overwritten by a
+// baseline.
+function pushSeenBulk(ids, hashes) {
+  if (seenLocalOnly) return;
+  try {
+    fetch('/api/seen', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seenIds: ids, seenHashes: hashes })
+    }).catch(function () { });
+  } catch (e) { }
 }
 var appVersion = '', latestVersion = '';
 var profiles = null, activeProfileId = '', editingProfileId = null, resolverScanHint = '', resolverScanHealthy = 0, resolverScanDone = 0, resolverScanTotal = 0;

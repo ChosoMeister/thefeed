@@ -128,6 +128,15 @@ type ProfileList struct {
 	// upgrades from before this field existed get the feature on; an
 	// explicit opt-out persists across restarts.
 	ResolverCacheShare *bool `json:"resolverCacheShare,omitempty"`
+
+	// SeenIDs maps channel name → last-seen message ID. It's the baseline
+	// for the per-channel unread-count badge. Persisted server-side so the
+	// counts survive the client's loopback port changing (which wipes the
+	// WebView localStorage these markers used to live in).
+	SeenIDs map[string]int64 `json:"seenIds,omitempty"`
+	// SeenHashes maps channel name → last-seen content hash, used for the
+	// X/Twitter "NEW" badge where message IDs aren't sequential.
+	SeenHashes map[string]int64 `json:"seenHashes,omitempty"`
 }
 
 // ShareEnabled returns whether the shared-resolver-cache feature is on.
@@ -195,6 +204,11 @@ type Server struct {
 	port     int
 	host     string
 	password string // admin password; empty means no auth
+	// sharedBackend marks a multi-user deployment (e.g. --host 0.0.0.0 with
+	// --shared). The UI then keeps unread/seen state per-browser in
+	// localStorage instead of the shared server profiles.json, so connected
+	// users don't clear each other's unread counts.
+	sharedBackend bool
 
 	mu               sync.RWMutex
 	config           *Config
@@ -384,6 +398,7 @@ func (s *Server) serve(ln net.Listener) error {
 	mux.HandleFunc("/api/auto-update", s.handleAutoUpdate)
 	mux.HandleFunc("/api/auto-update/toggle", s.handleAutoUpdateToggle)
 	mux.HandleFunc("/api/settings", s.handleSettings)
+	mux.HandleFunc("/api/seen", s.handleSeen)
 	mux.HandleFunc("/api/version-check", s.handleVersionCheck)
 	mux.HandleFunc("/api/update/github", s.handleGitHubUpdateCheck)
 	mux.HandleFunc("/api/update/download", s.handleUpdateDownload)
