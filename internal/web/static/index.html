@@ -95,7 +95,9 @@
         <div class="sidebar-header-top">
           <button class="profile-btn" id="profileBtn" onclick="openProfiles()">
             <div class="profile-btn-avatar" id="profileBtnAvatar">?</div>
-            <span class="profile-btn-name" id="profileBtnName" data-i18n="set_up">Set Up</span>
+            <!-- No data-i18n: renderProfileBtn() owns this label (profile name or
+                 translated "Set Up") — applyLang() must not overwrite it. -->
+            <span class="profile-btn-name" id="profileBtnName">Set Up</span>
             <span class="profile-btn-arrow"><span class="plus" data-icon="profileToggle"></span></span>
           </button>
           <button class="icon-btn" onclick="openSettings()" title="Settings" data-i18n-title="settings" data-icon="settings"></button>

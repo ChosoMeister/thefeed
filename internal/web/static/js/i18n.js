@@ -579,6 +579,9 @@ function applyLang() {
   applyThemeButtons();
   // Re-render dynamic content
   if (channels.length > 0) renderChannels();
+  // Profile button label: shows the active profile name, or a translated
+  // "Set Up" when none exist (the span has no data-i18n by design).
+  if (typeof renderProfileBtn === 'function') renderProfileBtn();
 }
 function setLang(l) {
   lang = l;

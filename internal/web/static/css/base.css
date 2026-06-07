@@ -45,6 +45,13 @@
       height: var(--icon-size);
     }
 
+    /* RTL: the back buttons are repositioned by the layout flip, but the
+       SVG inside still points left — mirror it so "back" points right. */
+    [dir="rtl"] .back-btn .icon svg,
+    [dir="rtl"] .tm-back .icon svg {
+      transform: scaleX(-1);
+    }
+
     :root {
       --bg: #17212b;
       --bg2: #0e1621;
