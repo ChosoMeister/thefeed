@@ -95,23 +95,25 @@
         <div class="sidebar-header-top">
           <button class="profile-btn" id="profileBtn" onclick="openProfiles()">
             <div class="profile-btn-avatar" id="profileBtnAvatar">?</div>
-            <span class="profile-btn-name" id="profileBtnName" data-i18n="set_up">Set Up</span>
-            <span class="profile-btn-arrow"><span class="plus">+</span>&#9660;</span>
+            <!-- No data-i18n: renderProfileBtn() owns this label (profile name or
+                 translated "Set Up") — applyLang() must not overwrite it. -->
+            <span class="profile-btn-name" id="profileBtnName">Set Up</span>
+            <span class="profile-btn-arrow"><span class="plus" data-icon="profileToggle"></span></span>
           </button>
-          <button class="icon-btn" onclick="openSettings()" title="Settings" data-i18n-title="settings">&#9881;</button>
+          <button class="icon-btn" onclick="openSettings()" title="Settings" data-i18n-title="settings" data-icon="settings"></button>
           <button class="icon-btn" onclick="jumpToLog()" title="Log" data-i18n-title="sidebar_log"
-            style="font-size:16px">&#128220;</button>
+            style="font-size:16px" data-icon="log"></button>
         </div>
         <div class="sidebar-toolbar">
-          <button class="stb" id="scannerIconBtn" onclick="openScanner()" data-i18n="scanner_find_resolvers">Find
-            Resolvers</button>
+          <button class="stb" id="scannerIconBtn" onclick="openScanner()"><span data-icon="search"></span> <span data-i18n="scanner_find_resolvers">Find
+            Resolvers</span></button>
           <button class="stb" id="resolversSidebarBtn" onclick="openResolversModal()"><span
               data-i18n="sidebar_resolvers">Resolvers</span> <span class="stb-badge" id="resolversBadge"
               style="color:var(--error)">0</span></button>
           <!-- BEGIN telemirror -->
           <button class="stb tm-sidebar-btn" id="telemirrorSidebarBtn" onclick="openTelemirror()"
             data-i18n-title="telemirror_btn_title"><span data-i18n="telemirror_btn">Browse channels</span><span
-              class="tm-sidebar-btn-ext" aria-hidden="true">&#8599;</span></button>
+              class="tm-sidebar-btn-ext" aria-hidden="true" data-icon="external"></span></button>
           <!-- END telemirror -->
         </div>
         <input class="sidebar-search" id="channelSearch" type="text" data-i18n-ph="search" placeholder="Search..."
@@ -135,7 +137,7 @@
     <!-- CHAT AREA -->
     <div class="chat-area">
       <div class="chat-header">
-        <button class="back-btn" onclick="openSidebar()">&#8592;</button>
+        <button class="back-btn" onclick="openSidebar()" data-icon="arrowLeft"></button>
         <div class="chat-header-info">
           <div class="chat-header-name" id="chatName">thefeed</div>
           <div class="chat-header-sub" id="chatSub"></div>
@@ -143,7 +145,7 @@
         <div class="chat-header-actions">
           <span class="next-fetch-label" id="nextFetchTimer"></span><span class="next-fetch-info" id="nextFetchInfoBtn"
             style="display:none" data-i18n-title="next_fetch_info" title="" onclick="showToast(t('next_fetch_info'))"
-            tabindex="0">ⓘ</span>
+            tabindex="0" data-icon="info"></span>
           <button class="icon-btn header-search-btn" onclick="toggleMsgSearch()" title="Search"
             data-i18n-title="search_messages"
             style="width:auto;height:30px;font-size:12px;padding:0 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface)"
@@ -153,10 +155,10 @@
             style="width:auto;height:30px;font-size:12px;padding:0 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface)"
             data-i18n="export_messages">Export</button>
           <button class="icon-btn" id="refreshBtn" onclick="doRefreshUI()" title="Refresh"
-            style="width:40px;height:40px;font-size:20px">&#8635;</button>
+            style="width:44px;height:44px;font-size:20px" data-icon="refresh"></button>
           <div class="header-kebab" id="headerKebab">
             <button class="icon-btn" onclick="toggleKebabMenu(event)" title="More"
-              style="width:40px;height:40px;font-size:20px">&#8942;</button>
+              style="width:44px;height:44px;font-size:20px" data-icon="more"></button>
             <div class="header-kebab-menu" id="headerKebabMenu">
               <button onclick="toggleMsgSearch();closeKebabMenu()" data-i18n="search_messages">Search</button>
               <button onclick="openExportModal();closeKebabMenu()" data-i18n="export_messages">Export</button>
@@ -169,14 +171,14 @@
           oninput="doMsgSearch()">
         <div class="search-nav">
           <span id="msgSearchCount"></span>
-          <button onclick="msgSearchPrev()" title="Previous">&#9650;</button>
-          <button onclick="msgSearchNext()" title="Next">&#9660;</button>
-          <button onclick="closeMsgSearch()" title="Close">&times;</button>
+          <button onclick="msgSearchPrev()" title="Previous" data-icon="chevronUp"></button>
+          <button onclick="msgSearchNext()" title="Next" data-icon="chevronDown"></button>
+          <button onclick="closeMsgSearch()" title="Close" data-icon="close"></button>
         </div>
       </div>
       <div class="messages" id="messages">
         <div class="empty-state">
-          <div class="big-icon">&#128225;</div>
+          <div class="big-icon" data-icon="antenna"></div>
           <p data-i18n="configure_server">Configure a server to start reading</p>
           <button class="btn btn-primary" onclick="openProfiles()" data-i18n="set_up">Set Up</button>
         </div>
@@ -185,12 +187,12 @@
       <div class="send-panel" id="sendPanel">
         <input class="send-input" id="sendInput" data-i18n-ph="write_message" placeholder="Write a message..."
           maxlength="4000">
-        <button class="send-btn" onclick="sendMessage()">&#10148;</button>
+        <button class="send-btn" onclick="sendMessage()" data-icon="send"></button>
       </div>
-      <button class="scroll-down-btn" id="scrollDownBtn" onclick="scrollToBottom()" title="Jump to latest">&#8595;<span
-          class="scroll-down-badge" id="scrollDownBadge"></span></button>
+      <button class="scroll-down-btn" id="scrollDownBtn" onclick="scrollToBottom()" title="Jump to latest"><span
+          data-icon="arrowDown"></span><span class="scroll-down-badge" id="scrollDownBadge"></span></button>
       <div class="progress-panel" id="progressPanel"></div>
-      <div class="log-toggle" onclick="toggleLog()"><span>LOG</span><span id="logToggleIcon">&#9654;</span></div>
+      <div class="log-toggle" onclick="toggleLog()"><span>LOG</span><span id="logToggleIcon" data-icon="chevronRight"></span></div>
       <div class="log-panel hidden" id="logPanel"></div>
     </div>
   </div>
@@ -213,7 +215,7 @@
           title="0xe73f022f668c57cce79feccd875ac7332311013a">0xe73f022f…2311013a</code>
         <button class="btn btn-flat" onclick="copyDonateAddr()" data-i18n="copy">Copy</button>
       </div>
-      <div class="donate-thanks" data-i18n="donate_thanks" dir="auto">Thanks for your support ❤️</div>
+      <div class="donate-thanks" dir="auto"><span data-i18n="donate_thanks">Thanks for your support</span> <span data-icon="heart"></span></div>
       <div style="margin-top:16px;text-align:end">
         <button class="btn btn-primary" onclick="closeDonate()" data-i18n="close">Close</button>
       </div>
@@ -266,8 +268,8 @@
   <!-- BEGIN telemirror -->
   <div id="telemirrorModal" class="tm-modal">
     <header class="tm-topbar">
-      <button class="tm-back" onclick="closeTelemirror()" aria-label="Close">&#10094;</button>
-      <button class="tm-menu" onclick="toggleTmSidebar()" aria-label="Channels">&#9776;</button>
+      <button class="tm-back" onclick="closeTelemirror()" aria-label="Close" data-icon="arrowLeft"></button>
+      <button class="tm-menu" onclick="toggleTmSidebar()" aria-label="Channels" data-icon="menu"></button>
       <div class="tm-topbar-info">
         <div id="tmTopbarAvatar"></div>
         <div class="tm-topbar-meta">
@@ -276,7 +278,7 @@
         </div>
       </div>
       <button class="tm-refresh" onclick="tmRefreshActive()" title="Refresh"
-        data-i18n-title="telemirror_refresh">&#8635;</button>
+        data-i18n-title="telemirror_refresh" data-icon="refresh"></button>
     </header>
     <div class="tm-body">
       <aside id="tmSidebar" class="tm-sidebar">
@@ -294,7 +296,7 @@
         <div class="tm-empty" data-i18n="telemirror_pick_channel">Pick a channel</div>
       </main>
       <button class="tm-scroll-down" id="tmScrollDownBtn" onclick="tmScrollToBottom()" aria-label="Scroll to latest"
-        title="Scroll to latest">&#8595;</button>
+        title="Scroll to latest" data-icon="arrowDown"></button>
     </div>
   </div>
   <!-- END telemirror -->
@@ -328,7 +330,7 @@
   <!-- ===== SETTINGS MODAL ===== -->
   <div class="modal-overlay" id="settingsModal">
     <div class="modal">
-      <h2 data-i18n="settings">&#9881; Settings</h2>
+      <h2><span data-icon="settings"></span> <span data-i18n="settings">Settings</span></h2>
 
       <!-- Tab strip. Three static tabs keep the modal short on mobile. -->
       <div class="settings-tabs" role="tablist">
@@ -416,7 +418,7 @@
         <div class="form-group">
           <div class="help-row">
             <label data-i18n="query_mode">Query Mode</label>
-            <span class="help-toggle" onclick="toggleHelp('helpQueryMode')" title="?">ⓘ</span>
+            <span class="help-toggle" onclick="toggleHelp('helpQueryMode')" title="?" data-icon="info"></span>
           </div>
           <select id="cfgQueryMode">
             <option value="single" data-i18n="query_mode_single">Single label (base32)</option>
@@ -427,7 +429,7 @@
         <div class="form-group">
           <div class="help-row">
             <label data-i18n="rate_limit">Concurrent block fetches</label>
-            <span class="help-toggle" onclick="toggleHelp('helpRateLimit')" title="?">ⓘ</span>
+            <span class="help-toggle" onclick="toggleHelp('helpRateLimit')" title="?" data-icon="info"></span>
           </div>
           <input type="number" id="cfgRateLimit" value="10" min="1" step="1">
           <div class="help-text" id="helpRateLimit" style="display:none" data-i18n="rate_limit_help"></div>
@@ -435,7 +437,7 @@
         <div class="form-group">
           <div class="help-row">
             <label data-i18n="scatter">Parallel resolvers per block</label>
-            <span class="help-toggle" onclick="toggleHelp('helpScatter')" title="?">ⓘ</span>
+            <span class="help-toggle" onclick="toggleHelp('helpScatter')" title="?" data-icon="info"></span>
           </div>
           <input type="number" id="cfgScatter" value="6" min="1" max="10">
           <div class="help-text" id="helpScatter" style="display:none" data-i18n="scatter_help"></div>
@@ -443,7 +445,7 @@
         <div class="form-group">
           <div class="help-row">
             <label data-i18n="dns_timeout">DNS Query Timeout (seconds)</label>
-            <span class="help-toggle" onclick="toggleHelp('helpTimeout')" title="?">ⓘ</span>
+            <span class="help-toggle" onclick="toggleHelp('helpTimeout')" title="?" data-icon="info"></span>
           </div>
           <input type="number" id="cfgTimeout" value="10" min="1" max="60" step="1">
           <div class="help-text" id="helpTimeout" style="display:none" data-i18n="dns_timeout_help"></div>
@@ -458,7 +460,7 @@
           <div class="row">
             <input type="checkbox" id="cfgProfilePics" onchange="setProfilePicsEnabled(this.checked)">
             <label for="cfgProfilePics" data-i18n="profile_pics_enable">Also fetch profile pictures over DNS</label>
-            <span class="help-toggle" onclick="toggleHelp('helpProfilePics')" title="?">ⓘ</span>
+            <span class="help-toggle" onclick="toggleHelp('helpProfilePics')" title="?" data-icon="info"></span>
           </div>
           <div class="help-text" id="helpProfilePics" style="display:none" data-i18n="profile_pics_dns_note">GitHub
             relay path is always used automatically. This option additionally pulls avatars over DNS when the relay is
@@ -473,7 +475,7 @@
           <div class="row">
             <input type="checkbox" id="cfgResolverCacheShare">
             <label for="cfgResolverCacheShare" data-i18n="resolver_cache_share">Shared resolver cache</label>
-            <span class="help-toggle" onclick="toggleHelp('helpResolverCacheShare')" title="?">ⓘ</span>
+            <span class="help-toggle" onclick="toggleHelp('helpResolverCacheShare')" title="?" data-icon="info"></span>
           </div>
           <div class="help-text" id="helpResolverCacheShare" style="display:none" data-i18n="resolver_cache_share_note">
             When enabled, queries to the same server become identical across users so public DNS resolvers can cache the
@@ -514,8 +516,7 @@
             style="flex:1">Privacy</button>
         </div>
         <div class="settings-info-row" style="margin-top:14px">
-          <button class="btn btn-flat btn-sm" onclick="clearCache()" style="color:var(--danger,#e74c3c);width:100%"
-            data-i18n="clear_cache_btn">Clear Cache</button>
+          <button class="btn btn-flat btn-sm" onclick="clearCache()" style="color:var(--danger,#e74c3c);width:100%"><span data-icon="delete"></span> <span data-i18n="clear_cache_btn">Clear Cache</span></button>
         </div>
       </div>
 
@@ -538,7 +539,7 @@
         <div class="import-row">
           <input id="importUriInput" placeholder="thefeed://..." data-i18n-ph="import_uri_ph">
           <button class="btn btn-flat btn-sm" type="button" onclick="pasteImportUri()" data-i18n-title="paste"
-            title="Paste" aria-label="Paste" style="font-size:14px">&#128203;</button>
+            title="Paste" aria-label="Paste" style="font-size:14px" data-icon="copy"></button>
           <button class="btn btn-primary btn-sm" onclick="doImportUri()" data-i18n="import">Import</button>
         </div>
         <div id="importError" style="color:var(--error);font-size:12px;display:none;margin-top:6px"></div>
@@ -547,8 +548,8 @@
       <div id="profilesListEl"></div>
       <div class="modal-actions">
         <button class="btn btn-flat" onclick="closeProfiles()" data-i18n="close">Close</button>
-        <button class="btn btn-outline" onclick="openProfileEditor(null)" data-i18n="add_manual">✎ Create
-          Manually</button>
+        <button class="btn btn-outline" onclick="openProfileEditor(null)"><span data-icon="edit"></span> <span data-i18n="add_manual">Create
+          Manually</span></button>
       </div>
     </div>
   </div>
@@ -730,8 +731,7 @@
           check</label>
       </div>
       <div class="modal-actions">
-        <button class="btn btn-outline" onclick="openScannerFromBank()" data-i18n="scanner_find_resolvers">&#128269;
-          Find Resolvers</button>
+        <button class="btn btn-outline" onclick="openScannerFromBank()"><span data-icon="search"></span> <span data-i18n="scanner_find_resolvers">Find Resolvers</span></button>
         <button class="btn btn-outline" onclick="doRescanFromBank()" data-i18n="rescan">Rescan</button>
         <button class="btn btn-outline" onclick="resetScoreboard()" data-i18n="reset_scoreboard">Reset Scores</button>
         <button class="btn btn-outline" onclick="copyResolversList()" data-i18n="copy">Copy</button>
@@ -743,7 +743,7 @@
   <!-- ===== SCANNER MODAL ===== -->
   <div class="modal-overlay" id="scannerModal">
     <div class="modal" style="max-width:520px">
-      <h2 data-i18n="scanner_title">&#128269; Resolver Scanner</h2>
+      <h2><span data-icon="search"></span> <span data-i18n="scanner_title">Resolver Scanner</span></h2>
 
       <!-- Collapsible help -->
       <div style="margin-bottom:14px">
@@ -771,7 +771,7 @@
             <label data-i18n="scanner_targets">IPs or CIDRs (one per line)</label>
             <div style="display:flex;gap:4px">
               <button class="btn btn-flat" onclick="document.getElementById('scanTargets').value='';updateScanIpCount()"
-                data-i18n="scanner_clear_targets" style="font-size:12px;padding:4px 10px">&#128465; Clear</button>
+                style="font-size:12px;padding:4px 10px"><span data-icon="delete"></span> <span data-i18n="scanner_clear_targets">Clear</span></button>
               <button class="btn btn-flat" onclick="loadScannerPresets()" style="font-size:12px;padding:4px 10px"><img
                   class="lion-sun-icon" src="/static/lion-sun.svg" alt=""
                   style="height:14px;vertical-align:middle;margin-right:2px"> <span
@@ -875,7 +875,7 @@
           <button class="btn btn-flat" style="flex:1;padding:8px 0;font-size:13px" onclick="copyAllScanResults()"
             data-i18n="scanner_copy_all">Copy All</button>
           <button class="btn btn-outline" style="flex:1;padding:8px 0;font-size:13px;font-weight:600"
-            onclick="resetScannerUI()" data-i18n="scanner_new_scan">&#8634; New Scan</button>
+            onclick="resetScannerUI()"><span data-icon="refresh"></span> <span data-i18n="scanner_new_scan">New Scan</span></button>
         </div>
       </div>
 
@@ -893,6 +893,7 @@
     </div>
   </div>
 
+  <script src="/static/js/icons.js"></script>
   <script src="/static/js/i18n.js"></script>
   <script src="/static/js/core.js"></script>
   <script src="/static/js/settings.js"></script>

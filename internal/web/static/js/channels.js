@@ -147,7 +147,7 @@ function _renderChannelsNow() {
   _renderChannelsTimer = null;
   var el = document.getElementById('channelList');
   if (!channels || !channels.length) {
-    var _hint = resolverScanHint || (t('no_channels_hint') + ' <button onclick="jumpToLog()" style="background:none;border:none;cursor:pointer;font-size:13px;vertical-align:middle;padding:0 2px">&#128220;</button> ' + t('no_channels_hint2'));
+    var _hint = resolverScanHint || (t('no_channels_hint') + ' <button onclick="jumpToLog()" style="background:none;border:none;cursor:pointer;font-size:13px;vertical-align:middle;padding:0 2px">' + icon('log') + '</button> ' + t('no_channels_hint2'));
     el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim);font-size:13px">' + t('no_channels') + '<br><span id="no-ch-hint" style="font-size:11px;opacity:.7;line-height:1.8">' + _hint + '</span></div>'; return
   }
   // Fast-path: if channel count matches existing items, just update classes/badges
@@ -280,12 +280,12 @@ function _renderChannelsNow() {
       var autoTitle = esc(t('auto_update_toggle') || 'Auto-update this channel');
       h += '<button type="button" class="ch-autoupdate' + (autoOn ? ' on' : '') + '"'
         + ' title="' + autoTitle + '" aria-label="' + autoTitle + '"'
-        + ' onclick="toggleAutoUpdate(\'' + escAttr(autoKey) + '\', event)">&#x23F1;</button>';
+        + ' onclick="toggleAutoUpdate(\'' + escAttr(autoKey) + '\', event)">' + icon('timer') + '</button>';
       var pinKey = handle.replace(/^@/, '').trim();
       var pinOn = pinnedChannels.has(pinKey);
       var pinTitle = esc(t('pin_channel') || 'Pin this channel');
       // Use 📌 for pinned, and hollow pin 📍 or just simple styling for unpinned.
-      var pinGlyph = pinOn ? '&#x1F4CC;' : '&#x1F4CD;';
+      var pinGlyph = pinOn ? icon('pinned') : icon('unpinned');
       h += '<button type="button" class="ch-pin' + (pinOn ? ' on' : '') + '"'
         + ' title="' + pinTitle + '" aria-label="' + pinTitle + '"'
         + ' onclick="togglePinChannel(\'' + escAttr(pinKey) + '\', event)">' + pinGlyph + '</button>';

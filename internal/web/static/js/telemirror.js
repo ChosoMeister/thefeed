@@ -308,19 +308,19 @@
 
   function tmShowFirstHint() {
     var content = document.getElementById('tmContent');
-    var msg, icon;
+    var msg, arrowGlyph;
     if (tmIsMobileLayout()) {
-      icon = '☰';
+      arrowGlyph = window.icon('menu');
       msg = tmI18n('telemirror_first_hint_mobile',
         'Tap the menu button at the top to open the channel list, then pick or add a channel.');
     } else {
-      icon = document.documentElement.dir === 'rtl' ? '→' : '←';
+      arrowGlyph = document.documentElement.dir === 'rtl' ? window.icon('arrowRight') : window.icon('arrowLeft');
       msg = tmI18n('telemirror_first_hint',
         'Pick a channel from the list, or add a new one with the input above.');
     }
     content.innerHTML =
       '<div class="tm-first-hint">'
-      + '<div class="tm-first-hint-arrow">' + tmEsc(icon) + '</div>'
+      + '<div class="tm-first-hint-arrow">' + arrowGlyph + '</div>'
       + '<div class="tm-first-hint-text">' + tmEsc(msg) + '</div>'
       + '</div>';
   }
@@ -334,7 +334,7 @@
       html += '<div class="tm-channel-item' + active + '" data-u="' + tmEscAttr(c.username) + '" onclick="tmSelectFromClick(this.dataset.u)">'
         + tmAvatarHTML(c.username, c.username, 40)
         + '<div class="tm-channel-item-meta">'
-        + '<div class="tm-channel-item-name">' + tmEsc(c.username) + (c.pinned ? ' <span class="tm-pin">📌</span>' : '') + '</div>'
+        + '<div class="tm-channel-item-name">' + tmEsc(c.username) + (c.pinned ? ' <span class="tm-pin">' + window.icon('pinned') + '</span>' : '') + '</div>'
         + '</div>';
       if (!c.pinned) {
         html += '<button class="tm-x" data-u="' + tmEscAttr(c.username) + '" onclick="event.stopPropagation();tmRemove(this.dataset.u)">&times;</button>';
@@ -549,7 +549,7 @@
           fwdName = '<a href="' + tmEscAttr(p.forward.url) + '" target="_blank" rel="noopener noreferrer">'
             + fwdName + '</a>';
         }
-        html += '<div class="tm-post-forward">↪ ' + tmEsc(fwdLabel) + ' ' + fwdName + '</div>';
+        html += '<div class="tm-post-forward">' + window.icon('reply') + ' ' + tmEsc(fwdLabel) + ' ' + fwdName + '</div>';
       }
 
       if (p.reply) {
@@ -593,7 +593,7 @@
 
       // Footer: timestamp + view count.
       html += '<div class="tm-post-foot">';
-      if (p.views) html += '<span class="tm-views">👁 ' + tmEsc(p.views) + '</span>';
+      if (p.views) html += '<span class="tm-views">' + window.icon('views') + ' ' + tmEsc(p.views) + '</span>';
       if (when) html += '<span class="tm-post-time">' + tmEsc(when) + '</span>';
       html += '</div>';
 
@@ -665,29 +665,29 @@
         + ' download="' + tmEscAttr(fname) + '"'
         + ' data-fname="' + tmEscAttr(fname) + '"'
         + ' title="' + tmEscAttr(tmI18n('download', 'Download')) + '"'
-        + ' onclick="event.stopPropagation();return tmDownloadPhoto(this, event)">⬇</a>'
+        + ' onclick="event.stopPropagation();return tmDownloadPhoto(this, event)">' + window.icon('download') + '</a>'
         + '</div>';
     }
     if (m.type === 'video') {
       var bg = m.thumb ? 'background-image:url(\'' + tmEscAttr(m.thumb) + '\')' : '';
       var dur = m.duration ? '<span class="tm-vid-dur">' + tmEsc(m.duration) + '</span>' : '';
       return '<div class="tm-vid" style="' + bg + '">'
-        + '<span class="tm-vid-play">&#9654;</span>' + dur + '</div>';
+        + '<span class="tm-vid-play">' + window.icon('play') + '</span>' + dur + '</div>';
     }
     if (m.type === 'voice') {
-      return '<div class="tm-media-tile"><span class="tm-media-icon">🎙️</span>'
+      return '<div class="tm-media-tile"><span class="tm-media-icon">' + window.icon('voice') + '</span>'
         + '<div class="tm-media-meta"><div class="tm-media-title">'
         + tmEsc(tmI18n('telemirror_voice', 'Voice message'))
         + '</div><div class="tm-media-sub">' + tmEsc(m.duration || '') + '</div></div></div>';
     }
     if (m.type === 'audio') {
-      return '<div class="tm-media-tile"><span class="tm-media-icon">🎵</span>'
+      return '<div class="tm-media-tile"><span class="tm-media-icon">' + window.icon('music') + '</span>'
         + '<div class="tm-media-meta"><div class="tm-media-title">'
         + tmEsc(m.title || tmI18n('telemirror_audio', 'Audio'))
         + '</div><div class="tm-media-sub">' + tmEsc(m.subtitle || m.duration || '') + '</div></div></div>';
     }
     if (m.type === 'document') {
-      return '<div class="tm-media-tile"><span class="tm-media-icon">📄</span>'
+      return '<div class="tm-media-tile"><span class="tm-media-icon">' + window.icon('document') + '</span>'
         + '<div class="tm-media-meta"><div class="tm-media-title">'
         + tmEsc(m.title || tmI18n('telemirror_file', 'File'))
         + '</div><div class="tm-media-sub">' + tmEsc(m.subtitle || '') + '</div></div></div>';
@@ -708,7 +708,7 @@
         }
         optionsHtml += '</ul>';
       }
-      return '<div class="tm-media-tile tm-media-poll"><span class="tm-media-icon">📊</span>'
+      return '<div class="tm-media-tile tm-media-poll"><span class="tm-media-icon">' + window.icon('stats') + '</span>'
         + '<div class="tm-media-meta"><div class="tm-media-title">'
         + tmEsc(m.title || tmI18n('telemirror_poll', 'Poll'))
         + '</div><div class="tm-media-sub">' + tmEsc(m.subtitle || '') + '</div>'
@@ -781,10 +781,10 @@
     var text = (pid && tmPostText[pid]) || '';
     if (!text) return;
     var done = function () {
-      var prev = btn.textContent;
-      btn.textContent = '✓';
+      var prev = btn.innerHTML;
+      btn.innerHTML = window.icon('check');
       btn.classList.add('tm-copied');
-      setTimeout(function () { btn.textContent = prev; btn.classList.remove('tm-copied'); }, 1200);
+      setTimeout(function () { btn.innerHTML = prev; btn.classList.remove('tm-copied'); }, 1200);
       tmToast(tmI18n('copied', 'Copied'));
     };
     if (navigator.clipboard && navigator.clipboard.writeText) {

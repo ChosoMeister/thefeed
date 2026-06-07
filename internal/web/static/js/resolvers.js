@@ -40,7 +40,7 @@ function renderResolverTabs() {
       var more = document.createElement('span');
       more.className = 'rtab-menu-btn';
       more.setAttribute('aria-label', t('manage_lists') || 'Manage');
-      more.innerHTML = '&#8942;'; // vertical ellipsis
+      more.innerHTML = window.icon('more'); // vertical ellipsis
       more.onclick = function (e) {
         e.stopPropagation();
         toggleResolverTabMenu(this);
@@ -66,7 +66,7 @@ function renderResolverTabs() {
   add.className = 'rtab rtab-add';
   add.title = t('save_current_list') || 'Save current as new list';
   add.setAttribute('aria-label', t('save_current_list') || 'New list');
-  add.innerHTML = '&#43;';
+  add.innerHTML = window.icon('add');
   add.onclick = function () {
     hideResolverTabMenu();
     saveCurrentResolverListPrompt();
@@ -90,7 +90,7 @@ function renderBankPill() {
   var icon = document.createElement('span');
   icon.className = 'rtab-bank-icon';
   icon.setAttribute('aria-hidden', 'true');
-  icon.innerHTML = '&#128176;'; // 💰 a bank pouch
+  icon.innerHTML = window.icon('bank'); // bank pouch
   var bankLabel = document.createElement('span');
   bankLabel.textContent = t('resolver_tab_bank') || 'Bank';
   var bankCount = document.createElement('span');

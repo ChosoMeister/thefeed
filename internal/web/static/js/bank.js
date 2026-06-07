@@ -33,22 +33,22 @@ function _buildScoreboardTable(board, showRemove, removeFromBank) {
     var b = board[i];
     var scoreColor = b.score >= 0.5 ? 'var(--success)' : b.score >= 0.15 ? 'var(--text)' : 'var(--error)';
     var dot = (b.active !== undefined && b.active)
-      ? ' <span style="color:var(--success);font-size:10px">●</span>' : '';
+      ? ' <span style="color:var(--success);font-size:10px">' + icon('dotFilled') + '</span>' : '';
     h += '<div class="rb-row">';
     h += '<div class="rb-row-main">';
     h += '<div class="rb-row-addr">' + esc(b.addr) + dot + '</div>';
     h += '<div class="rb-row-stats">';
     h += '<span>' + (b.avgMs > 0 ? Math.round(b.avgMs) + 'ms' : '-') + '</span>';
     h += '<span style="color:' + scoreColor + ';font-weight:600">' + b.score.toFixed(2) + '</span>';
-    h += '<span style="color:var(--success)">✅ ' + b.success + '</span>';
-    h += '<span style="color:var(--error)">❌ ' + b.failure + '</span>';
+    h += '<span style="color:var(--success)">' + icon('success') + ' ' + b.success + '</span>';
+    h += '<span style="color:var(--error)">' + icon('fail') + ' ' + b.failure + '</span>';
     h += '</div></div>';
     if (showRemove) {
       var fn = removeFromBank ? 'removeResolverFromBank' : 'removeResolver';
       h += '<div class="rb-row-actions">';
       if (removeFromBank) {
         h += '<button class="rb-row-btn rb-row-add" onclick="openBankAddPicker(this,\'' + esc(b.addr) + '\')" '
-          + 'data-i18n-title="add_to_list" title="Add to list" aria-label="Add to list">&#43;</button>';
+          + 'data-i18n-title="add_to_list" title="Add to list" aria-label="Add to list">' + icon('add') + '</button>';
       }
       h += '<button class="rb-row-btn rb-row-del" onclick="' + fn + '(\'' + esc(b.addr) + '\')" '
         + 'title="Remove" aria-label="Remove">&times;</button>';

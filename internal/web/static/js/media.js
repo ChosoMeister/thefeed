@@ -271,12 +271,12 @@ function renderDownloadableMedia(tag, parsed, msgID) {
     var imageInner;
     if (canDownload) {
       imageInner = '<button class="media-action" onclick="mediaStart(\'' + domID + '\')" type="button" title="' + esc(t('download') || 'Download') + '">'
-        + '<span class="media-icon">&#11015;</span>'
+        + '<span class="media-icon">' + icon('download') + '</span>'
         + '<span class="media-meta" dir="ltr">' + esc(summary) + '</span>'
         + '</button>';
     } else {
       imageInner = '<button class="media-action media-action-blocked" type="button" onclick="mediaShowBlockedReason(\'' + domID + '\')" title="' + esc(t('media_blocked_title') || 'Not available for download') + '">'
-        + '<span class="media-icon media-icon-blocked">&#10005;</span>'
+        + '<span class="media-icon media-icon-blocked">' + icon('close') + '</span>'
         + '<span class="media-meta" dir="ltr">' + esc(summary) + '</span>'
         + '</button>';
     }
@@ -289,8 +289,8 @@ function renderDownloadableMedia(tag, parsed, msgID) {
 
   // File-style row: tag chip + filename(label) + size + action button
   var btnHTML = canDownload
-    ? '<button class="media-file-btn" onclick="mediaStart(\'' + domID + '\')" type="button" title="' + esc(t('download') || 'Download') + '">&#11015;</button>'
-    : '<button class="media-file-btn media-file-btn-blocked" onclick="mediaShowBlockedReason(\'' + domID + '\')" type="button" title="' + esc(t('media_blocked_title') || 'Not available for download') + '">&#10005;</button>';
+    ? '<button class="media-file-btn" onclick="mediaStart(\'' + domID + '\')" type="button" title="' + esc(t('download') || 'Download') + '">' + icon('download') + '</button>'
+    : '<button class="media-file-btn media-file-btn-blocked" onclick="mediaShowBlockedReason(\'' + domID + '\')" type="button" title="' + esc(t('media_blocked_title') || 'Not available for download') + '">' + icon('close') + '</button>';
   var detail = (parsed.size > 0 ? formatBytes(parsed.size) : '?')
     + (parsed.blocks > 0 ? ' &middot; ' + parsed.blocks + ' ' + (t('blocks_label') || 'blocks') : '');
   var displayName = parsed.filename || label;
@@ -386,13 +386,13 @@ function mediaShowQueued(card) {
     var preview = document.getElementById(domID + '-preview');
     if (preview) {
       preview.innerHTML = '<button class="media-action media-action-queued" type="button" onclick="mediaStart(\'' + domID + '\')" title="' + esc(t('cancel') || 'Cancel') + '">'
-        + '<span class="media-icon">&#9203;</span>'
+        + '<span class="media-icon">' + icon('loading') + '</span>'
         + '<span class="media-meta" dir="ltr">' + esc(label) + '</span>'
         + '</button>';
     }
   } else {
     var actions = document.getElementById(domID + '-actions');
-    if (actions) actions.innerHTML = '<button class="media-file-btn media-file-btn-queued" onclick="mediaStart(\'' + domID + '\')" type="button" title="' + esc(label) + '">&#9203;</button>';
+    if (actions) actions.innerHTML = '<button class="media-file-btn media-file-btn-queued" onclick="mediaStart(\'' + domID + '\')" type="button" title="' + esc(label) + '">' + icon('loading') + '</button>';
   }
 }
 
@@ -724,7 +724,7 @@ function mediaShowBlob(card, blobURL) {
   var fill = document.getElementById(domID + '-fill');
   if (fill) fill.style.width = '100%';
   var txt = document.getElementById(domID + '-text');
-  if (txt) txt.textContent = formatBytes(parseInt(card.getAttribute('data-size'), 10) || 0) + ' ✓';
+  if (txt) txt.innerHTML = formatBytes(parseInt(card.getAttribute('data-size'), 10) || 0) + ' ' + icon('check');
 }
 
 function mediaImageFailed(msgID) {
@@ -861,13 +861,13 @@ function buildMediaActions(msgID, tag) {
     // Play icon (▶) — on Android Intent.createChooser picks the
     // best system video/audio player; on browser the blob opens in a
     // new tab where the browser's native viewer handles it.
-    html += '<button class="media-action-icon" onclick="mediaOpen(\'' + msgID + '\')" title="' + playTitle + '" aria-label="' + playTitle + '">&#9654;</button>';
+    html += '<button class="media-action-icon" onclick="mediaOpen(\'' + msgID + '\')" title="' + playTitle + '" aria-label="' + playTitle + '">' + icon('play') + '</button>';
   } else if (!isImage) {
-    html += '<button class="media-action-icon" onclick="mediaOpen(\'' + msgID + '\')" title="' + openTitle + '" aria-label="' + openTitle + '">&#128279;</button>';
+    html += '<button class="media-action-icon" onclick="mediaOpen(\'' + msgID + '\')" title="' + openTitle + '" aria-label="' + openTitle + '">' + icon('link') + '</button>';
   }
-  html += '<button class="media-action-icon" onclick="mediaSave(\'' + msgID + '\')" title="' + saveTitle + '" aria-label="' + saveTitle + '">&#128190;</button>';
+  html += '<button class="media-action-icon" onclick="mediaSave(\'' + msgID + '\')" title="' + saveTitle + '" aria-label="' + saveTitle + '">' + icon('save') + '</button>';
   if (canShare) {
-    html += '<button class="media-action-icon" onclick="mediaShare(\'' + msgID + '\')" title="' + shareTitle + '" aria-label="' + shareTitle + '">&#10150;</button>';
+    html += '<button class="media-action-icon" onclick="mediaShare(\'' + msgID + '\')" title="' + shareTitle + '" aria-label="' + shareTitle + '">' + icon('share') + '</button>';
   }
   return html;
 }
@@ -1197,7 +1197,7 @@ function mediaResetCard(card) {
     var preview = document.getElementById(domID + '-preview');
     if (preview) {
       preview.innerHTML = '<button class="media-action" onclick="mediaStart(\'' + domID + '\')" type="button" title="' + esc(t('download') || 'Download') + '">'
-        + '<span class="media-icon">&#11015;</span>'
+        + '<span class="media-icon">' + icon('download') + '</span>'
         + '<span class="media-meta">' + label + ' &middot; ' + sizeStr + '</span>'
         + '</button>';
     }
@@ -1205,7 +1205,7 @@ function mediaResetCard(card) {
   }
   var actions = document.getElementById(domID + '-actions');
   if (actions) {
-    actions.innerHTML = '<button class="media-file-btn" onclick="mediaStart(\'' + domID + '\')" type="button" title="' + esc(t('download') || 'Download') + '">&#11015;</button>';
+    actions.innerHTML = '<button class="media-file-btn" onclick="mediaStart(\'' + domID + '\')" type="button" title="' + esc(t('download') || 'Download') + '">' + icon('download') + '</button>';
   }
   var fill = document.getElementById(domID + '-fill');
   if (fill) fill.style.width = '0%';
