@@ -1,6 +1,6 @@
 # thefeed
 
-基于 DNS 的 Telegram 频道与公开 X 账号阅读器。专为只有 DNS 查询能通的网络环境而设计。
+基于 DNS 的 Telegram 频道与公开 X 账号阅读器，同时也是一款轻量级私信工具：阅读频道、浏览公开 X 账号，并通过 DNS 与其他用户收发端到端加密消息。专为只有 DNS 查询能通的网络环境而设计。
 
 [English](README.md) | [فارسی](README-FA.md) | 简体中文 | [Русский](README-RU.md)
 

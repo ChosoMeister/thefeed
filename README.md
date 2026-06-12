@@ -1,6 +1,6 @@
 # thefeed
 
-DNS-based feed reader for Telegram channels and public X accounts. Designed for environments where only DNS queries work.
+DNS-based feed reader **and lite messenger** for environments where only DNS queries work. Read Telegram channels and public X accounts, and exchange end-to-end-encrypted messages with other users — all over DNS.
 
 [English](README.md) | [فارسی](README-FA.md) | [简体中文](README-ZH.md) | [Русский](README-RU.md)
 
