@@ -59,9 +59,24 @@ function chatFmtDate(ts) {
   }
 }
 
+// ===== open / close + hardware-back history =====
+// The messenger is a full-screen modal with two single-pane views (list and
+// thread). To make the Android/iOS hardware back button — and browser back —
+// navigate thread→list→close instead of dropping out of the app, each layer
+// pushes a history entry; the popstate handler unwinds them one at a time.
+// Mirrors the telemirror modal pattern. Explicit close/back route through
+// history too (history.go/back) so the button and the hardware key take the
+// exact same path and the stack stays balanced.
+var chatHistoryPushed = false; // messenger modal layer pushed
+var chatThreadPushed = false;  // conversation (thread) layer pushed
+var chatSuppressPopstate = 0;  // swallow the popstates our own history.go fires
+
 function openMessenger() {
   document.getElementById('chatModal').classList.add('active');
   chatState.open = true;
+  if (!chatHistoryPushed) {
+    try { history.pushState({ view: 'chatMessenger' }, ''); chatHistoryPushed = true; } catch (e) { }
+  }
   chatRenderList();
   chatLoadInfo();
   chatLoadThreads();
@@ -70,7 +85,10 @@ function openMessenger() {
   chatBindViewport();
 }
 
-function closeMessenger() {
+// chatTeardown hides the modal and stops the timers. It does NOT touch history
+// — the caller decides whether to unwind (explicit close) or not (popstate has
+// already popped us).
+function chatTeardown() {
   chatStopForegroundTimer();
   chatUnbindViewport();
   chatState.open = false;
@@ -78,6 +96,35 @@ function closeMessenger() {
   chatState.peer = null;
   document.getElementById('chatModal').classList.remove('active');
 }
+
+// closeMessenger is the explicit close (the list-view back arrow, the
+// not-configured banner). Tear down, then pop whatever history layers we
+// pushed, suppressing the popstates that the unwind fires.
+function closeMessenger() {
+  var steps = (chatHistoryPushed ? 1 : 0) + (chatThreadPushed ? 1 : 0);
+  chatHistoryPushed = false;
+  chatThreadPushed = false;
+  chatTeardown();
+  if (steps > 0) {
+    chatSuppressPopstate += steps;
+    try { history.go(-steps); } catch (e) { }
+  }
+}
+
+// Hardware / browser back: unwind one layer at a time — thread→list, then
+// close the modal. History already popped the entry, so we just sync the UI.
+window.addEventListener('popstate', function () {
+  if (chatSuppressPopstate > 0) { chatSuppressPopstate--; return; }
+  if (chatThreadPushed) {
+    chatThreadPushed = false;
+    chatShowList();
+    return;
+  }
+  if (chatHistoryPushed) {
+    chatHistoryPushed = false;
+    chatTeardown();
+  }
+});
 
 function chatStopForegroundTimer() {
   if (chatState.fgTimer) { clearInterval(chatState.fgTimer); chatState.fgTimer = null; }
@@ -585,6 +632,9 @@ function chatPickServer(addr, key) {
 async function openChatThread(addr) {
   chatState.view = 'thread';
   chatState.peer = addr;
+  if (!chatThreadPushed) {
+    try { history.pushState({ view: 'chatThread' }, ''); chatThreadPushed = true; } catch (e) { }
+  }
   await chatRenderThread();
   // ✓✓ + safety emojis arrive async (it's a DNS round trip). The foreground
   // timer (started on open) keeps refreshing while the conversation is open.
@@ -847,11 +897,20 @@ function chatInputKey(e) {
   }
 }
 
-function chatBackToList() {
+// chatShowList switches the thread view back to the conversation list. It does
+// NOT touch history — chatBackToList and the popstate handler manage that.
+function chatShowList() {
   chatState.view = 'list';
   chatState.peer = null;
   chatRenderList();
   chatLoadThreads();
+}
+
+// chatBackToList is the in-thread back arrow. Route through history so the
+// button and the hardware back key take the same path (popstate → chatShowList).
+function chatBackToList() {
+  if (chatThreadPushed) { try { history.back(); } catch (e) { } return; }
+  chatShowList();
 }
 
 function chatRenamePeer() {
@@ -1050,6 +1109,15 @@ function chatOnSSE(data) {
   if (data.type === 'progress') {
     if (data.op === 'send') chatShowProgress('chatSendProgress', data.done, data.total, '↑');
     else if (data.op === 'poll') chatShowPollProgress(data.done, data.total);
+    return;
+  }
+  if (data.type === 'inboxstored') {
+    // Messages are stored but not yet acked — render them now so the UI doesn't
+    // wait on the ack round trip. Notification is left to the 'inbox' event so
+    // it isn't doubled.
+    chatLoadThreads().then(function () {
+      if (chatState.open && chatState.view === 'thread') chatRenderThread();
+    });
     return;
   }
   if (data.type === 'inbox') {

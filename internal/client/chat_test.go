@@ -413,6 +413,79 @@ func TestChatClientLossyTransport(t *testing.T) {
 	}
 }
 
+// TestChatClientSurvivesLostFinAck simulates a flaky resolver that drops the
+// FIN response (and every retransmit) AFTER the server has already committed
+// the message — the exact "the server got it but the sender never saw the ack"
+// case. SendMessage must reconcile against authoritative server state and
+// report success, delivering the message exactly once (no duplicate).
+func TestChatClientSurvivesLostFinAck(t *testing.T) {
+	ts := newChatTestServer(t, protocol.DefaultChatLimits())
+	a := newChatTestClient(t, ts)
+	b := newChatTestClient(t, ts)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	if err := b.Register(ctx, nil); err != nil {
+		t.Fatalf("register B: %v", err)
+	}
+
+	// Once the server has committed A→B seq 1 (the FIN landed and CommitMessage
+	// ran), drop that response and every cell retransmit so the upload only ever
+	// sees transport failure on the FIN. The later reconciling SendStatus op
+	// passes through, mimicking a resolver that recovers a moment later.
+	inner := a.f.exchangeFn
+	var mu sync.Mutex
+	triggered, dropBudget, drops := false, 0, 0
+	a.f.exchangeFn = func(ctx context.Context, m *dns.Msg, addr string) (*dns.Msg, time.Duration, error) {
+		resp, rtt, err := inner(ctx, m, addr) // server processes (and may commit) here
+		mu.Lock()
+		defer mu.Unlock()
+		if !triggered {
+			// The A→B accepted seq is stored under B's account, keyed by A.
+			if acc, _, _, _ := ts.store.PairState(b.Identity().Addr, a.Identity().Addr, time.Now()); acc >= 1 {
+				triggered = true
+				dropBudget = chatCellAttempts // swallow the FIN-OK + all its retransmits
+			}
+		}
+		if dropBudget > 0 {
+			dropBudget--
+			drops++
+			return nil, 0, errors.New("synthetic FIN-OK loss")
+		}
+		return resp, rtt, err
+	}
+
+	var progressLog []int
+	res, err := a.SendMessage(ctx, b.Identity().Addr, 1, "lost ack but delivered", func(done, total int) {
+		progressLog = append(progressLog, done)
+	})
+	if err != nil {
+		t.Fatalf("send must reconcile a lost FIN-ack to success, got err: %v", err)
+	}
+	if res.Seq != 1 {
+		t.Fatalf("seq = %d, want 1", res.Seq)
+	}
+	mu.Lock()
+	gotDrops := drops
+	mu.Unlock()
+	if gotDrops == 0 {
+		t.Fatal("transport never dropped the FIN ack — test exercised nothing")
+	}
+	for i := 1; i < len(progressLog); i++ {
+		if progressLog[i] < progressLog[i-1] {
+			t.Fatalf("send progress went backwards: %v", progressLog)
+		}
+	}
+
+	// Delivered exactly once — the lost-ack recovery must not duplicate.
+	msgs, err := b.FetchInbox(ctx, nil)
+	if err != nil {
+		t.Fatalf("fetch inbox: %v", err)
+	}
+	if len(msgs) != 1 || msgs[0].Text != "lost ack but delivered" {
+		t.Fatalf("inbox = %d msgs (%+v), want exactly 1", len(msgs), msgs)
+	}
+}
+
 // TestChatClientCounterCapRehandshakes drives the per-session op counter up to
 // the cap and verifies the next op transparently re-handshakes (resetting the
 // counter) instead of sealing into the reserved counter region — which would

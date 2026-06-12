@@ -147,6 +147,13 @@ const (
 	chatMaxFinRounds    = 6
 	chatMaxRestarts     = 3
 
+	// chatSendUploadAttempts bounds how many times SendMessage re-runs the whole
+	// (idempotent) upload when the resolver is dropping packets. Each attempt
+	// already retries cells/rounds/handshakes internally; this outer loop covers
+	// the case where even those exhaust, and reconciles against server state
+	// between tries so a dropped FIN-OK is recognised as a delivered message.
+	chatSendUploadAttempts = 10
+
 	// chatMaxSessionCounter forces a re-handshake before the per-session op
 	// counter can reach the reserved counter regions (bootstrap 0x400000,
 	// response bit 0x800000) whose nonces would otherwise collide with a live
@@ -662,20 +669,68 @@ func (c *ChatClient) SendMessage(ctx context.Context, peer [protocol.AddressSize
 		ChatAddressString(peer)[:8], seq, len(env),
 		(len(env)+protocol.ChatDataChunkSize-1)/protocol.ChatDataChunkSize)
 
-	st, lastAccepted, remaining, reset, err := c.upload(ctx, info, peer, env, progress)
-	if err != nil {
-		return nil, err
+	// Progress must never go backwards. A mid-upload session loss restarts the
+	// byte upload from SEND_START, and an outer transport retry re-runs the whole
+	// upload — both would otherwise re-report from a lower baseline and make the
+	// bar look like it reset or cancelled. Clamp to a high-water mark.
+	mono := progress
+	if progress != nil {
+		hi := 0
+		mono = func(done, total int) {
+			if done < hi {
+				done = hi
+			} else {
+				hi = done
+			}
+			progress(done, total)
+		}
 	}
-	if st == protocol.ChatStatusOK {
-		c.updateQuota(remaining, reset)
-		c.f.log("[chat] sent to %s seq=%d (%d sends left this hour)", ChatAddressString(peer)[:8], seq, remaining)
-		return &ChatSendResult{Seq: seq, Remaining: remaining, ResetUnix: reset}, nil
+
+	// The upload is idempotent by seq (the server dedupes and never stores a
+	// duplicate), so a flaky resolver can only stall it, not corrupt it. Keep
+	// retrying on transport errors, and after each failure reconcile against
+	// authoritative server state: if the server already accepted this seq (a
+	// dropped FIN-OK), the message IS delivered — report success instead of a
+	// phantom failure the sender would have to guess about.
+	var lastErr error
+	for attempt := 0; attempt < chatSendUploadAttempts; attempt++ {
+		st, lastAccepted, remaining, reset, err := c.upload(ctx, info, peer, env, mono)
+		if err == nil {
+			if st == protocol.ChatStatusOK {
+				c.updateQuota(remaining, reset)
+				c.f.log("[chat] sent to %s seq=%d (%d sends left this hour)", ChatAddressString(peer)[:8], seq, remaining)
+				return &ChatSendResult{Seq: seq, Remaining: remaining, ResetUnix: reset}, nil
+			}
+			// Authoritative server rejection (quota/replay/…): not a transport
+			// problem, so don't retry — surface it to the caller.
+			serr := &ChatStatusError{Op: protocol.ChatOpFin, Status: st, Remaining: remaining, ResetUnix: reset}
+			if st == protocol.ChatStatusReplay {
+				serr.LastAccepted = lastAccepted
+			}
+			return nil, serr
+		}
+		lastErr = err
+		if ctx.Err() != nil {
+			break
+		}
+		// Did the message land despite the transport error? (lost FIN-OK)
+		if acc, _, perr := c.PeerStatus(ctx, peer); perr == nil && acc >= seq {
+			rem, rst, _ := c.Quota()
+			c.f.log("[chat] send to %s seq=%d confirmed on server after transport error", ChatAddressString(peer)[:8], seq)
+			return &ChatSendResult{Seq: seq, Remaining: rem, ResetUnix: rst}, nil
+		}
+		if attempt+1 >= chatSendUploadAttempts {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			lastErr = ctx.Err()
+		case <-time.After(time.Duration(attempt+1) * 500 * time.Millisecond):
+			continue
+		}
+		break
 	}
-	serr := &ChatStatusError{Op: protocol.ChatOpFin, Status: st, Remaining: remaining, ResetUnix: reset}
-	if st == protocol.ChatStatusReplay {
-		serr.LastAccepted = lastAccepted
-	}
-	return nil, serr
+	return nil, lastErr
 }
 
 // upload runs SEND_START / DATA (selective repeat) / FIN against the session,

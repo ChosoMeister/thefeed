@@ -496,6 +496,15 @@ func (h *chatHub) pollServer(ctx context.Context, ps *perServerChat, progress cl
 	}
 	h.mu.Unlock()
 
+	if added > 0 {
+		// Render the new messages immediately. The per-peer ACK below is a DNS
+		// round trip (seconds on a flaky resolver) that only frees the sender's
+		// quota — it has nothing to do with display and must not delay the UI.
+		// Notification fires separately (the 'inbox' event), so this render-only
+		// signal doesn't double-notify.
+		h.s.broadcastChat(map[string]any{"type": "inboxstored", "got": added})
+	}
+
 	for addr, seq := range maxSeq {
 		peer, perr := client.ParseChatAddress(addr)
 		if perr != nil {
