@@ -58,6 +58,11 @@ type chatThreadFile struct {
 	// Server is the chat server (profile main domain) this conversation is
 	// bound to — chosen when the chat was started, used for sending.
 	Server string `json:"server,omitempty"`
+	// LastAccepted/LastDelivered cache the server's ✓/✓✓ counters so ticks
+	// render correctly right after a restart, instead of showing 🕓 until the
+	// first peer-status DNS round trip returns.
+	LastAccepted  uint32 `json:"acc,omitempty"`
+	LastDelivered uint32 `json:"del,omitempty"`
 }
 
 // chatThreadsFile is chat/threads.json.
@@ -337,6 +342,10 @@ func (h *chatHub) runPollLoop(ctx context.Context) {
 		}
 		if n := h.pollAllServers(ctx, nil); n > 0 {
 			h.s.broadcastChat(map[string]any{"type": "inbox", "got": n})
+			// Native notifier (mobile): the web UI handles foreground alerts, but
+			// a backgrounded app has its WebView suspended — let the platform post
+			// a system notification. The handler itself decides foreground gating.
+			h.s.notifyNewMessages(n)
 		}
 		interval := chatPollInterval
 		if h.s.hasUIClients() {
@@ -990,10 +999,12 @@ func (s *Server) handleChatMessages(w http.ResponseWriter, r *http.Request) {
 		msgs = []chatStoredMsg{} // a typed-nil slice marshals to null; force []
 	}
 	resp := map[string]any{
-		"peer":   addr,
-		"name":   h.contacts[addr],
-		"msgs":   msgs,
-		"server": th.Server,
+		"peer":      addr,
+		"name":      h.contacts[addr],
+		"msgs":      msgs,
+		"server":    th.Server,
+		"accepted":  th.LastAccepted,
+		"delivered": th.LastDelivered,
 	}
 	h.mu.Unlock()
 	writeJSON(w, resp)
@@ -1120,6 +1131,9 @@ func (s *Server) handleChatSend(w http.ResponseWriter, r *http.Request) {
 		th.LastOutSeq = make(map[string]uint32)
 	}
 	th.LastOutSeq[serverKey] = res.Seq
+	if res.Seq > th.LastAccepted {
+		th.LastAccepted = res.Seq // a committed send IS accepted (✓)
+	}
 	th.Msgs = append(th.Msgs, chatStoredMsg{
 		Dir: "out", Seq: res.Seq, Text: text,
 		TS: time.Now().Unix(), Server: serverKey,
@@ -1175,6 +1189,13 @@ func (s *Server) handleChatPeerStatus(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": false, "error": chatStatusKey(err)})
 		return
 	}
+	// Cache the counters in the thread file so ticks survive a restart.
+	h.mu.Lock()
+	if th := h.threads[addr]; th != nil && (th.LastAccepted != accepted || th.LastDelivered != delivered) {
+		th.LastAccepted, th.LastDelivered = accepted, delivered
+		h.saveThreadsLocked()
+	}
+	h.mu.Unlock()
 	out := map[string]any{"ok": true, "accepted": accepted, "delivered": delivered}
 	if rem, reset, known := chatc.Quota(); known {
 		out["quota"] = map[string]any{"remaining": rem, "resetUnix": reset}

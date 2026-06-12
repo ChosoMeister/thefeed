@@ -26,6 +26,28 @@ type Server struct {
 	done    chan struct{}
 }
 
+// MessageNotifier is implemented on the native side (Kotlin/Swift). The Go
+// background chat poll loop calls OnNewMessages when it discovers new messages,
+// so the native app can post a system notification while it's backgrounded
+// (the in-app, foreground case is handled by the web UI). The implementation
+// must be cheap and non-blocking — it runs on a Go poll goroutine.
+type MessageNotifier interface {
+	OnNewMessages(count int)
+}
+
+// SetMessageNotifier registers (or, with nil, clears) the native new-message
+// notifier. Safe to call after the server is running.
+func (s *Server) SetMessageNotifier(n MessageNotifier) {
+	if s == nil || s.web == nil {
+		return
+	}
+	if n == nil {
+		s.web.SetNewMessageHandler(nil)
+		return
+	}
+	s.web.SetNewMessageHandler(func(count int) { n.OnNewMessages(count) })
+}
+
 // NewServer starts a server on 127.0.0.1. preferredPort=0 picks a
 // kernel-assigned port; a positive value is tried first and falls
 // back to kernel-assigned on bind failure. dataDir must be a writable

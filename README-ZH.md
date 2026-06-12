@@ -17,6 +17,7 @@
   ```
 - **Android APK**(Android 7.0+):2017 年以后的设备装 `arm64-v8a`，更老的 32 位机型装 `armeabi-v7a`。
 - **iOS**(iOS 14+):App Store 版本计划中。源码在 [ios/](ios/) 目录，参见下文 [iOS 开发](#ios-开发)。
+- **Windows**(10/11):`.exe` **未签名**,首次运行时 SmartScreen 会提示「Windows protected your PC」,Defender 可能将其隔离 —— 这是 DNS 隧道类工具常见的误报,**并非恶意软件**。点击 **More info → Run anyway**;若被删除,可在 Defender →《保护历史记录》中恢复,不放心可核对发布页的 SHA-256。(计划通过代码签名消除此提示。)
 
 可用于测试的公开配置：[@thefeedconfig](https://t.me/thefeedconfig)。
 

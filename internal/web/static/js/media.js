@@ -794,6 +794,22 @@ window.handleAndroidBack = async function () {
   }
   var openModal = document.querySelector('.modal-overlay.active');
   if (openModal) { openModal.classList.remove('active'); return; }
+  // Messenger (#chatModal): close a layered chat sheet first, then thread →
+  // list, then list → close. Mirrors the in-app back arrows so the hardware
+  // back key behaves the same. (The native back delegates here instead of
+  // firing popstate, so the messenger has to be handled explicitly.)
+  var chatModalEl = document.getElementById('chatModal');
+  if (chatModalEl && chatModalEl.classList.contains('active')) {
+    var chatSheet = document.querySelector('.chat-sheet-overlay');
+    if (chatSheet && chatSheet.parentNode) { chatSheet.parentNode.removeChild(chatSheet); return; }
+    if (typeof chatState !== 'undefined' && chatState.view === 'thread'
+      && typeof chatBackToList === 'function') {
+      chatBackToList();
+    } else if (typeof closeMessenger === 'function') {
+      closeMessenger();
+    }
+    return;
+  }
   if (mobileQuery.matches && document.getElementById('app').classList.contains('chat-open')) {
     openSidebar();
     return;

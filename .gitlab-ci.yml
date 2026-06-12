@@ -611,6 +611,8 @@ release:
 
       **iOS / iPadOS (preview, iOS 14+):** the easiest install is the public [TestFlight beta](https://testflight.apple.com/join/J6bfxDdZ) — one tap, no computer needed. Otherwise the \`.ipa\` below is unsigned: re-sign it with your own Apple ID and provisioning profile (AltStore, Sideloadly, or \`xcrun altool\`). The \`.ipa\` will not install directly from a download.
 
+      **Windows (10/11):** the \`.exe\` is **unsigned**, so SmartScreen shows *"Windows protected your PC"* and Defender may flag it as a false positive — DNS-tunneling tools commonly trip AV heuristics; **this is not malware**. Click **More info → Run anyway**, and if it's quarantined restore it from Defender → *Protection history*. Verify the SHA-256 below if unsure. — این هشدار طبیعی است (فایل امضای دیجیتال ندارد)؛ روی **More info → Run anyway** بزنید.
+
       ## SHA-256 checksums
 
       Verify a download with: \`sha256sum -c sha256sums.txt\` (or \`shasum -a 256 -c sha256sums.txt\` on macOS).

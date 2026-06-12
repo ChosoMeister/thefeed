@@ -428,6 +428,7 @@
       justify-content: center;
       padding: 20px;
       cursor: zoom-out;
+      overflow: hidden;
     }
 
     #tmLightbox img {
@@ -436,6 +437,11 @@
       object-fit: contain;
       box-shadow: 0 4px 30px rgba(0, 0, 0, .5);
       cursor: default;
+      /* zoom/pan gestures are handled in JS (tmEnableLightboxZoom) */
+      touch-action: none;
+      will-change: transform;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     .tm-lightbox-close {

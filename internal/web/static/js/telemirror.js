@@ -122,8 +122,8 @@
       });
   };
 
-  // Fullscreen image overlay. Tap the backdrop or X to close. Tap on
-  // the image itself does nothing (avoids accidents on iOS double-tap
+  // Fullscreen image overlay. Tap the backdrop or X to close; the image
+  // itself is zoomable (pinch / double-tap / wheel, see tmEnableLightboxZoom).
   // Lightbox: open pushes a history entry, close just calls
   // history.back() — the popstate handler is the only thing that
   // removes the DOM. That way explicit close and browser-back take
@@ -143,13 +143,101 @@
       '<button class="tm-lightbox-close" type="button" aria-label="Close">×</button>' +
       '<img src="' + tmEscAttr(src) + '" referrerpolicy="no-referrer" alt="">';
     d.addEventListener('click', function (e) {
+      // A pan/pinch that ends over the backdrop must not close the lightbox.
+      if (d.__tmSuppressClose) return;
       if (e.target === d || e.target.classList.contains('tm-lightbox-close')) {
         window.tmCloseLightbox();
       }
     });
     document.body.appendChild(d);
+    tmEnableLightboxZoom(d);
     try { history.pushState({ view: 'tmLightbox' }, ''); tmLightboxPushed = true; } catch (e) { }
   };
+
+  // Lightbox zoom: pinch (touch), double-tap, and mouse wheel — plus drag to
+  // pan while zoomed. Pointer Events give one code path for mouse and touch.
+  // The transform is translate+scale around the container centre; zoomAt keeps
+  // the focal point (fingers' midpoint / cursor / tap) fixed on screen.
+  function tmEnableLightboxZoom(box) {
+    var img = box.querySelector('img');
+    if (!img) return;
+    var scale = 1, tx = 0, ty = 0;
+    var ptrs = {}, nPtrs = 0;
+    var startDist = 0, startScale = 1, lastTap = 0, moved = false;
+    function apply() {
+      img.style.transform = (scale === 1 && !tx && !ty) ? '' :
+        'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
+    }
+    function zoomAt(k, cx, cy) {
+      var r = box.getBoundingClientRect();
+      var fx = cx - (r.left + r.width / 2), fy = cy - (r.top + r.height / 2);
+      var ns = Math.min(6, Math.max(1, scale * k));
+      k = ns / scale;
+      tx = fx - k * (fx - tx);
+      ty = fy - k * (fy - ty);
+      scale = ns;
+      if (scale === 1) { tx = 0; ty = 0; }
+      apply();
+    }
+    function two() {
+      var ids = Object.keys(ptrs);
+      return [ptrs[ids[0]], ptrs[ids[1]]];
+    }
+    img.addEventListener('pointerdown', function (e) {
+      ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
+      nPtrs++;
+      moved = false;
+      if (nPtrs === 2) {
+        var p = two();
+        startDist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+        startScale = scale;
+      }
+      try { img.setPointerCapture(e.pointerId); } catch (err) { }
+      e.preventDefault();
+    });
+    img.addEventListener('pointermove', function (e) {
+      var prev = ptrs[e.pointerId];
+      if (!prev) return;
+      ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
+      if (nPtrs === 2 && startDist > 0) {
+        var p = two();
+        var d2 = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+        var k = (d2 / startDist) * startScale / scale;
+        zoomAt(k, (p[0].x + p[1].x) / 2, (p[0].y + p[1].y) / 2);
+        moved = true;
+      } else if (nPtrs === 1 && scale > 1) {
+        tx += e.clientX - prev.x;
+        ty += e.clientY - prev.y;
+        if (Math.abs(e.clientX - prev.x) + Math.abs(e.clientY - prev.y) > 2) moved = true;
+        apply();
+      }
+    });
+    function up(e) {
+      if (!ptrs[e.pointerId]) return;
+      delete ptrs[e.pointerId];
+      nPtrs--;
+      if (nPtrs < 2) startDist = 0;
+      if (moved) {
+        box.__tmSuppressClose = true;
+        setTimeout(function () { box.__tmSuppressClose = false; }, 80);
+      }
+      if (e.type === 'pointerup' && !moved && nPtrs === 0) {
+        var now = Date.now();
+        if (now - lastTap < 300) { // double-tap: toggle 1x ↔ 2.5x at the tap point
+          zoomAt(scale > 1 ? 1 / scale : 2.5, e.clientX, e.clientY);
+          lastTap = 0;
+        } else {
+          lastTap = now;
+        }
+      }
+    }
+    img.addEventListener('pointerup', up);
+    img.addEventListener('pointercancel', up);
+    box.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      zoomAt(Math.exp(-e.deltaY * 0.0022), e.clientX, e.clientY);
+    }, { passive: false });
+  }
 
   // Telegram wraps every emoji in <i class="emoji" style="background-image:url(...)"><b>X</b></i>
   // so it can render its own sprite. Outside Telegram's CSS the sprite

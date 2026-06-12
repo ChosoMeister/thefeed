@@ -32,6 +32,7 @@ import android.app.AlertDialog
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -204,6 +205,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        appInForeground = true
+        // Back in the foreground: the in-app UI now shows messages, so clear any
+        // pending "new message" notification + its running count.
+        ThefeedService.pendingNewCount = 0
+        try {
+            NotificationManagerCompat.from(this).cancel(ThefeedService.MSG_NOTIFICATION_ID)
+        } catch (_: Exception) {
+        }
         if (batteryOptRequested) {
             batteryOptRequested = false
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -215,6 +224,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        appInForeground = false
     }
 
     private fun startThefeedService() {
@@ -449,6 +463,12 @@ class MainActivity : ComponentActivity() {
         // counter for that brief window just looks broken.
         private const val QUIET_ATTEMPTS    = 3
         private const val PREF_BATTERY_OPT_DECLINED = "battery_opt_declined"
+
+        // Read by ThefeedService (from a Go poll thread) to decide whether a new
+        // message warrants a system notification — foreground alerts are the web
+        // UI's job, so the service only notifies while the app is backgrounded.
+        @Volatile
+        var appInForeground = false
     }
 }
 

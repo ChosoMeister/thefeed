@@ -16,6 +16,8 @@ var chatState = {
   pendingServer: {}, // addr -> serverKey, for a new chat before its first send binds it
   peerStatus: {},    // addr -> {accepted, delivered, emojis}
   sending: false,
+  sendProg: null,   // {done,total} of the in-flight send, so a mid-send thread
+                    // re-render can repaint the progress bar it destroys
   polling: false,
   fgTimer: null,    // foreground poll while the messenger is open
   cdTimer: null,    // 1s ticker for the "next check in Ns" countdown
@@ -772,7 +774,11 @@ async function chatRenderThread() {
     data = await r.json();
   } catch (e) { }
   var msgs = data.msgs || []; // server may omit / null for an empty thread
-  var st = chatState.peerStatus[addr] || {};
+  // Ticks: prefer the live peer-status probe, but fall back to the counters
+  // persisted in the thread file so ✓/✓✓ survive an app restart instead of
+  // regressing to 🕓 until the first DNS status round trip completes.
+  var st = chatState.peerStatus[addr] ||
+    { accepted: data.accepted || 0, delivered: data.delivered || 0 };
   var nm = data.name || chatName(addr);
   var threadServer = data.server || chatState.pendingServer[addr] || '';
 
@@ -796,6 +802,17 @@ async function chatRenderThread() {
   html += '<div class="chat-body" id="chatMsgsBody">';
   if (!msgs.length) {
     html += '<div class="chat-empty">' + esc(chatT('chat_no_messages')) + '</div>';
+  }
+  // Stranger warning: this thread was started by the peer and the user has
+  // neither replied nor named the contact — anyone holding the address can
+  // write, so warn before the user trusts links or shares anything private.
+  // Replying or naming the contact clears it (the user has decided who it is).
+  var hasOut = false;
+  for (var mi = 0; mi < msgs.length; mi++) {
+    if (msgs[mi].dir === 'out') { hasOut = true; break; }
+  }
+  if (msgs.length && !hasOut && !data.name && !chatState.contacts[addr]) {
+    html += '<div class="chat-banner chat-banner-warn" dir="auto">' + esc(chatT('chat_stranger_warn')) + '</div>';
   }
   var lastDate = '';
   msgs.forEach(function (m) {
@@ -841,6 +858,15 @@ async function chatRenderThread() {
   if (inp && draft != null) {
     inp.value = draft;
     if (selStart != null) { try { inp.setSelectionRange(selStart, selEnd); } catch (e) { } }
+  }
+  // A send in flight survives this re-render: the compose row was just rebuilt,
+  // so re-disable the input (chatInputResize already disables the button while
+  // sending) and repaint the live send-progress bar this render destroyed.
+  if (chatState.sending) {
+    if (inp) inp.disabled = true;
+    if (chatState.sendProg) {
+      chatShowProgress('chatSendProgress', chatState.sendProg.done, chatState.sendProg.total, '↑');
+    }
   }
   chatInputResize();
   chatUpdateCountdown();
@@ -950,6 +976,7 @@ async function sendChatMessage() {
   }
 
   chatState.sending = true;
+  chatState.sendProg = { done: 0, total: 1 };
   btn.disabled = true;
   inp.disabled = true;
   chatShowProgress('chatSendProgress', 0, 1, '↑');
@@ -962,7 +989,16 @@ async function sendChatMessage() {
     });
     var d = await r.json();
     if (d.ok) {
-      inp.value = '';
+      // Mark the send finished BEFORE re-rendering so chatRenderThread won't
+      // re-disable the row, repaint a stale bar, or restore the sent draft.
+      chatState.sending = false;
+      chatState.sendProg = null;
+      // Clear the LIVE input by id: a re-render during the (possibly multi-
+      // second) send may have replaced the element captured above, leaving
+      // `inp` detached — clearing that would do nothing and the sent text would
+      // linger in the visible box, looking unsent even though it was delivered.
+      var liveInp = document.getElementById('chatInput');
+      if (liveInp) liveInp.value = '';
       if (d.remaining != null) chatState.quota = { remaining: d.remaining, resetUnix: d.resetUnix };
       delete chatState.pendingServer[peerAddr]; // thread is now bound to its server
       await chatRenderThread();
@@ -983,6 +1019,7 @@ async function sendChatMessage() {
     showToast(chatT('chat_err_generic'));
   } finally {
     chatState.sending = false;
+    chatState.sendProg = null;
     var inp2 = document.getElementById('chatInput');
     if (inp2) inp2.disabled = false;
     chatInputResize(); // recompute the send button's enabled state
@@ -1107,7 +1144,10 @@ function chatHidePollProgress() {
 function chatOnSSE(data) {
   if (!data || typeof data !== 'object') return;
   if (data.type === 'progress') {
-    if (data.op === 'send') chatShowProgress('chatSendProgress', data.done, data.total, '↑');
+    if (data.op === 'send') {
+      chatState.sendProg = { done: data.done, total: data.total };
+      chatShowProgress('chatSendProgress', data.done, data.total, '↑');
+    }
     else if (data.op === 'poll') chatShowPollProgress(data.done, data.total);
     return;
   }

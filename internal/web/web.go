@@ -302,6 +302,31 @@ type Server struct {
 
 	// chat is the standalone messenger hub (identity, threads, poll loop).
 	chat *chatHub
+
+	// newMsgMu guards newMsgHandler, an optional callback the background chat
+	// poll loop invokes when it finds new messages. The mobile bind layer wires
+	// it to a native notifier so backgrounded apps can post a system
+	// notification (the in-app, foreground case is handled by the web UI).
+	newMsgMu      sync.Mutex
+	newMsgHandler func(count int)
+}
+
+// SetNewMessageHandler registers a callback invoked (off the UI path) whenever
+// the background chat poll loop discovers new messages. Pass nil to clear.
+func (s *Server) SetNewMessageHandler(fn func(count int)) {
+	s.newMsgMu.Lock()
+	s.newMsgHandler = fn
+	s.newMsgMu.Unlock()
+}
+
+// notifyNewMessages fires the registered new-message handler, if any.
+func (s *Server) notifyNewMessages(count int) {
+	s.newMsgMu.Lock()
+	fn := s.newMsgHandler
+	s.newMsgMu.Unlock()
+	if fn != nil {
+		fn(count)
+	}
 }
 
 // New creates a new web server.

@@ -18,6 +18,7 @@ import java.net.ServerSocket
 // The Go HTTP server runs in-process via a JNI .so loaded from the AAR
 // — no subprocess, no exec from nativeLibraryDir, no PIE/page-size/
 // SELinux pitfalls.
+import mobile.MessageNotifier
 import mobile.Mobile
 import mobile.Server
 
@@ -27,6 +28,7 @@ class ThefeedService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        createMessageNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification("Starting local service..."))
         savePort(-1)
         startServerAsync()
@@ -75,6 +77,12 @@ class ThefeedService : Service() {
                     Mobile.newAndroidServer(dataDir.absolutePath, port.toLong())
                 }
                 server = s
+                // The Go background chat poll calls this when new messages land.
+                s.setMessageNotifier(object : MessageNotifier {
+                    override fun onNewMessages(count: Long) {
+                        maybeNotifyNewMessages(count.toInt())
+                    }
+                })
                 val actual = s.port().toInt()
                 savePort(actual)
                 updateForegroundNotification("Running on http://127.0.0.1:$actual")
@@ -173,9 +181,74 @@ class ThefeedService : Service() {
         }
     }
 
+    // maybeNotifyNewMessages is the native side of the Go MessageNotifier. It is
+    // called from a Go poll goroutine, so it stays cheap and thread-safe. The web
+    // UI handles foreground alerts, so the system notification only fires while
+    // the app is backgrounded.
+    private fun maybeNotifyNewMessages(count: Int) {
+        if (count <= 0 || MainActivity.appInForeground) return
+        // Accumulate across background poll cycles; MainActivity resets this and
+        // cancels the notification when the user reopens the app.
+        pendingNewCount += count
+        postMessageNotification(pendingNewCount)
+    }
+
+    private fun postMessageNotification(total: Int) {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val isPersian = (prefs.getString(AndroidBridge.PREF_LANG, "fa") ?: "fa") == "fa"
+        val title = if (isPersian) "پیام جدید" else "thefeed"
+        val text = when {
+            isPersian -> "$total پیام جدید"
+            total > 1 -> "$total new messages"
+            else -> "New message"
+        }
+        val openIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 2, openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(this, MSG_CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setSmallIcon(android.R.drawable.stat_notify_chat)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
+        try {
+            getSystemService(NotificationManager::class.java)
+                .notify(MSG_NOTIFICATION_ID, notification)
+        } catch (_: Exception) {
+            // Notification permission not granted — nothing else to do.
+        }
+    }
+
+    private fun createMessageNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                MSG_CHANNEL_ID,
+                "thefeed messages",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "New chat messages"
+                setShowBadge(true)
+            }
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        }
+    }
+
     companion object {
         const val CHANNEL_ID = "thefeed_service"
+        const val MSG_CHANNEL_ID = "thefeed_messages"
         const val NOTIFICATION_ID = 1201
+        const val MSG_NOTIFICATION_ID = 1202
+        // Running count of new messages seen while backgrounded; MainActivity
+        // resets it (and cancels MSG_NOTIFICATION_ID) on resume.
+        @Volatile
+        @JvmStatic
+        var pendingNewCount = 0
         const val PREFS_NAME = "thefeed_runtime"
         const val PREF_PORT = "port"
         const val ACTION_STOP = "com.thefeed.android.STOP"

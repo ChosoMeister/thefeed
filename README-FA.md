@@ -25,6 +25,7 @@ sudo bash -c "$(curl -Ls https://gitlab.com/sartoopjj/thefeed/-/raw/main/scripts
 </div>
 
 - **APK اندروید**: گوشی‌های جدیدتر از حدود ۱۳۹۶ نسخه `arm64-v8a` و دستگاه‌های قدیمی ۳۲ بیتی نسخه `armeabi-v7a` را نصب کنند.
+- **ویندوز** (۱۰/۱۱): فایل `.exe` **امضای دیجیتال ندارد**، برای همین در اولین اجرا SmartScreen پیام «Windows protected your PC» نشان می‌دهد و ممکن است Defender آن را قرنطینه کند — این یک هشدار اشتباه (false positive) رایج برای ابزارهای تونل DNS است، **نه بدافزار**. روی **More info → Run anyway** بزنید؛ اگر حذف شد از مسیر Defender → *Protection history* برش گردانید و در صورت تردید هش SHA-256 را از صفحهٔ انتشار بررسی کنید. (امضای دیجیتال برای رفع این هشدار در برنامهٔ کار است.)
 
 کانفیگ‌های عمومی برای تست: [@thefeedconfig](https://t.me/thefeedconfig).
 

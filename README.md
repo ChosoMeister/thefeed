@@ -17,6 +17,7 @@ DNS-based feed reader **and lite messenger** for environments where only DNS que
   ```
 - **Android APK** (Android 7.0+): pick `arm64-v8a` for any phone newer than ~2017, `armeabi-v7a` for older 32-bit-only devices.
 - **iOS** (iOS 14+): App Store build planned. Source under [ios/](ios/) — see [iOS development](#ios-development) below.
+- **Windows** (10/11): the `.exe` is **unsigned**, so on first run SmartScreen shows *"Windows protected your PC"* and Defender may quarantine it — a known false positive for DNS-tunneling tools, **not malware**. Click **More info → Run anyway**; if it's removed, restore it from Defender → *Protection history*, and verify the SHA-256 from the release page if unsure. (Code-signing is planned to remove this warning.)
 
 Public configs to test with: [@thefeedconfig](https://t.me/thefeedconfig).
 
