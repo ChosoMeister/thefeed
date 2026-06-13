@@ -176,13 +176,13 @@ func TestChatHandshakeStreamRoundTrip(t *testing.T) {
 	ks[0] = 1
 	setupTag := [chatSelectorSize]byte{0x33, 0, 0}
 	sealedBoot := SealChat(ks, setupTag[:], ChatBootstrapCounter(), bootPlain)
-	stream := BuildChatHandshakeStream(eph.PublicKey().Bytes(), ChatHandshakeAuth, sealedBoot)
+	stream := BuildChatHandshakeStream(eph.PublicKey().Bytes(), ChatProtocolVersion, ChatHandshakeAuth, sealedBoot)
 
-	gotEph, kind, gotSealed, err := ParseChatHandshakeStream(stream)
+	gotEph, gotVer, kind, gotSealed, err := ParseChatHandshakeStream(stream)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if kind != ChatHandshakeAuth || !bytes.Equal(gotEph, eph.PublicKey().Bytes()) {
+	if kind != ChatHandshakeAuth || gotVer != ChatProtocolVersion || !bytes.Equal(gotEph, eph.PublicKey().Bytes()) {
 		t.Fatal("stream header mismatch")
 	}
 	opened, err := OpenChat(ks, setupTag[:], ChatBootstrapCounter(), gotSealed)

@@ -420,20 +420,24 @@ func ParseChatFinPlain(pt []byte) (*ChatFin, error) {
 // ---- handshake stream ----
 
 // BuildChatHandshakeStream assembles the reassembled handshake stream:
-// eph(32) ‖ kind(1) ‖ sealedBootstrap.
-func BuildChatHandshakeStream(ephPub []byte, kind byte, sealedBootstrap []byte) []byte {
-	out := make([]byte, 0, X25519KeySize+1+len(sealedBootstrap))
+// eph(32) ‖ proto_ver(1) ‖ kind(1) ‖ sealedBootstrap.
+//
+// proto_ver is cleartext (the server must read it before deriving Ksession to
+// pick the version's derivation) but tamper-evident: it is bound into Ksession
+// (see ChatSessionKey), so flipping it just breaks the bootstrap seal.
+func BuildChatHandshakeStream(ephPub []byte, protoVer, kind byte, sealedBootstrap []byte) []byte {
+	out := make([]byte, 0, X25519KeySize+2+len(sealedBootstrap))
 	out = append(out, ephPub...)
-	out = append(out, kind)
+	out = append(out, protoVer, kind)
 	return append(out, sealedBootstrap...)
 }
 
 // ParseChatHandshakeStream splits a reassembled handshake stream.
-func ParseChatHandshakeStream(stream []byte) (ephPub []byte, kind byte, sealedBootstrap []byte, err error) {
-	if len(stream) < X25519KeySize+1 {
-		return nil, 0, nil, fmt.Errorf("chat handshake: short stream")
+func ParseChatHandshakeStream(stream []byte) (ephPub []byte, protoVer, kind byte, sealedBootstrap []byte, err error) {
+	if len(stream) < X25519KeySize+2 {
+		return nil, 0, 0, nil, fmt.Errorf("chat handshake: short stream")
 	}
-	return stream[:X25519KeySize], stream[X25519KeySize], stream[X25519KeySize+1:], nil
+	return stream[:X25519KeySize], stream[X25519KeySize], stream[X25519KeySize+1], stream[X25519KeySize+2:], nil
 }
 
 // ChatBootstrapCounter is the counter the bootstrap blob is sealed under.

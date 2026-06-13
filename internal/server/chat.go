@@ -194,9 +194,9 @@ func (h *chatHandshake) assemble() ([]byte, bool) {
 	if len(h.chunks) < 2 || h.chunks[0] == nil || h.chunks[1] == nil {
 		return nil, false
 	}
-	// stream[X25519KeySize] = kind, which lands in chunk[1] at offset
-	// X25519KeySize - ChatCellPayloadSize.
-	kindOff := protocol.X25519KeySize - protocol.ChatCellPayloadSize
+	// Stream = eph(32) ‖ proto_ver(1) ‖ kind(1) ‖ bootstrap. The kind byte is at
+	// stream offset X25519KeySize+1, which lands in chunk[1].
+	kindOff := protocol.X25519KeySize + 1 - protocol.ChatCellPayloadSize
 	if kindOff < 0 || kindOff >= len(h.chunks[1]) {
 		return nil, false
 	}
@@ -209,7 +209,7 @@ func (h *chatHandshake) assemble() ([]byte, bool) {
 	default:
 		return nil, false
 	}
-	total := protocol.X25519KeySize + 1 + bootLen
+	total := protocol.X25519KeySize + 2 + bootLen
 	n := (total + protocol.ChatCellPayloadSize - 1) / protocol.ChatCellPayloadSize
 	buf := make([]byte, 0, n*protocol.ChatCellPayloadSize)
 	for i := 0; i < n; i++ {
@@ -247,11 +247,16 @@ func (c *ChatService) handleHandshakeCell(setupTag [protocol.ChatSelectorSize]by
 }
 
 func (c *ChatService) completeHandshake(setupTag [protocol.ChatSelectorSize]byte, stream []byte, domain string, now time.Time) []byte {
-	ephPub, kind, sealedBoot, err := protocol.ParseChatHandshakeStream(stream)
+	ephPub, protoVer, kind, sealedBoot, err := protocol.ParseChatHandshakeStream(stream)
 	if err != nil {
 		return []byte{}
 	}
-	ksession, err := protocol.ChatSessionKey(c.ek, ephPub, c.queryKey)
+	// Only the version(s) this server speaks. A future multi-version server
+	// branches its derivation/parsers here; today there is exactly one.
+	if protoVer != protocol.ChatProtocolVersion {
+		return []byte{}
+	}
+	ksession, err := protocol.ChatSessionKey(c.ek, ephPub, protoVer, c.queryKey)
 	if err != nil {
 		return []byte{}
 	}

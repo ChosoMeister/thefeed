@@ -396,7 +396,7 @@ func (c *ChatClient) handshake(ctx context.Context, info *protocol.ChatInfo, kin
 	if err != nil {
 		return
 	}
-	ks, err = protocol.ChatSessionKey(eph, info.EkPub, c.f.queryKey)
+	ks, err = protocol.ChatSessionKey(eph, info.EkPub, protocol.ChatProtocolVersion, c.f.queryKey)
 	if err != nil {
 		return
 	}
@@ -431,7 +431,7 @@ func (c *ChatClient) handshake(ctx context.Context, info *protocol.ChatInfo, kin
 		return
 	}
 
-	stream := protocol.BuildChatHandshakeStream(eph.PublicKey().Bytes(), kind, sealedBoot)
+	stream := protocol.BuildChatHandshakeStream(eph.PublicKey().Bytes(), protocol.ChatProtocolVersion, kind, sealedBoot)
 	n := (len(stream) + protocol.ChatCellPayloadSize - 1) / protocol.ChatCellPayloadSize
 	for round := 0; round < chatControlAttempts; round++ {
 		if round > 0 {

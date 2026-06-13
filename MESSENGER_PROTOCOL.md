@@ -226,21 +226,36 @@ server's `ek`:
 
 ```
 Ksession = HKDF( ECDH(eph_priv, ek_pub),
-                 info = "thefeed-chat-session-v1" ‖ query_key )
+                 info = "thefeed-chat-session-v1" ‖ proto_ver ‖ query_key )
 ```
 
 Mixing `query_key` into the HKDF info keeps the public passphrase a hard
-requirement even though `ek` is published.
+requirement even though `ek` is published. Mixing `proto_ver` makes the
+protocol version **tamper-evident** (see below).
 
 The client streams a **handshake stream** across one or more handshake cells
 (counter = chunk index), which the server reassembles:
 
 ```
-stream = eph_pub(32) ‖ kind(1) ‖ sealed_bootstrap
+stream = eph_pub(32) ‖ proto_ver(1) ‖ kind(1) ‖ sealed_bootstrap
 sealed_bootstrap = SealChat(Ksession, setup_tag, BOOTSTRAP_COUNTER=0x400000, bootstrap_plaintext)
 ```
 
-`eph_pub` is cleartext (random-looking); the bootstrap is sealed.
+`eph_pub` and `proto_ver` are cleartext (the server must read `proto_ver`
+*before* deriving `Ksession`, to pick the version's derivation); the bootstrap is
+sealed.
+
+**Version is bound to the key (downgrade resistance).** `proto_ver` is cleartext
+but it is folded into `Ksession`. An on-path attacker who knows the *public*
+passphrase can flip the byte, but then the server derives a different `Ksession`
+than the client and the sealed bootstrap fails to open — the handshake aborts
+(fail-closed). The attacker cannot force a silent downgrade to an
+exploitable-but-supported version; at worst it is a denial of service, which any
+on-path DNS attacker already has by dropping packets. The set of versions the
+client is willing to choose comes from the **signed** `ChatInfo` (pinned key), so
+the attacker cannot lie about which versions exist either. Knowing the public
+passphrase is *not* the session secret — that needs `ek`'s private half (ECDH),
+which the server alone holds — so a passphrase-only adversary cannot MITM.
 
 Two kinds:
 
@@ -428,7 +443,7 @@ an open problem (§15).
 | Identity | ed25519 | HKDF(seed, "…identity-v1") |
 | Enc key | x25519 | HKDF(seed, "…encryption-v1") |
 | Address | SHA-256(id_pub)[:12] | — |
-| Session key | HKDF(ECDH(eph, ek)) | info ‖ query_key, "…session-v1" |
+| Session key | HKDF(ECDH(eph, ek)) | "…session-v1" ‖ proto_ver ‖ query_key |
 | Per-op seal | AES-256-CTR + HMAC-SHA256[:4] | enc/mac sub-keys of Ksession |
 | Client↔server (kss) | HKDF(ECDH(enc, ek)) | "…server-v1" ‖ client_enc ‖ ek |
 | Account proof | HMAC(kss)[:8] | "…acct-proof-v1" ‖ eph ‖ addr ‖ ts ‖ domain |
@@ -464,9 +479,14 @@ These are the design choices we are least sure about. Comments very welcome.
    handling (one clock-corrected retry) safe against a replay-within-window?
 7. **DoS / abuse.** Rate limits are per account, but registration is cheap
    (self-signed). Should registration carry a proof-of-work or be invite-gated?
-8. **Versioning / negotiation.** `ChatInfo` advertises min/max version and the op
-   byte reserves a version nibble, but there is no per-op negotiation yet. Enough
-   for a v1→v2 migration?
+8. **Versioning / negotiation.** Three hooks now exist: the signed `ChatInfo`
+   min/max range, the op-byte version nibble, and the handshake `proto_ver` byte
+   bound into `Ksession` (downgrade-resistant). A future multi-version server
+   branches its derivation/parsers on `proto_ver`. What is missing for an actual
+   v1→v2 migration is (a) the server running two derivations at once and (b) the
+   envelope/register parsers dispatching by version instead of single-accept — is
+   this scaffolding sufficient, and should a new client also speak the old version
+   to reach not-yet-upgraded peers?
 
 ---
 

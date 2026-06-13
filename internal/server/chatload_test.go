@@ -38,7 +38,7 @@ func loadEnvInt(name string, def int) int {
 // loadRegister runs a register handshake without t.Fatal (goroutine-safe).
 func loadRegister(svc *ChatService, qk [protocol.KeySize]byte, ekPub []byte, c simClient) (ref [protocol.ChatSelectorSize]byte, ks [protocol.KeySize]byte, err error) {
 	eph, _ := protocol.GenerateEphemeralKey()
-	ks, _ = protocol.ChatSessionKey(eph, ekPub, qk)
+	ks, _ = protocol.ChatSessionKey(eph, ekPub, protocol.ChatProtocolVersion, qk)
 	var tag [protocol.ChatSelectorSize]byte
 	_, _ = rand.Read(tag[:])
 	protocol.ChatMarkHandshakeSelector(&tag)
@@ -47,7 +47,7 @@ func loadRegister(svc *ChatService, qk [protocol.KeySize]byte, ekPub []byte, c s
 		return ref, ks, e
 	}
 	sealedBoot := protocol.SealChat(ks, tag[:], protocol.ChatBootstrapCounter(), rec)
-	stream := protocol.BuildChatHandshakeStream(eph.PublicKey().Bytes(), protocol.ChatHandshakeRegister, sealedBoot)
+	stream := protocol.BuildChatHandshakeStream(eph.PublicKey().Bytes(), protocol.ChatProtocolVersion, protocol.ChatHandshakeRegister, sealedBoot)
 	n := (len(stream) + protocol.ChatCellPayloadSize - 1) / protocol.ChatCellPayloadSize
 	var last []byte
 	for i := 0; i < n; i++ {

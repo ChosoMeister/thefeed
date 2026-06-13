@@ -95,28 +95,28 @@ func openHandshake(t *testing.T, ks [protocol.KeySize]byte, tag [protocol.ChatSe
 func registerHandshake(t *testing.T, svc *ChatService, qk [protocol.KeySize]byte, ekPub []byte, c simClient) (ref [protocol.ChatSelectorSize]byte, ks [protocol.KeySize]byte) {
 	t.Helper()
 	eph, _ := protocol.GenerateEphemeralKey()
-	ks, _ = protocol.ChatSessionKey(eph, ekPub, qk)
+	ks, _ = protocol.ChatSessionKey(eph, ekPub, protocol.ChatProtocolVersion, qk)
 	tag := handshakeTag()
 	rec, err := protocol.EncodeRegisterEnvelope(c.id, c.enc.PublicKey().Bytes(), 1750000000)
 	if err != nil {
 		t.Fatal(err)
 	}
 	sealedBoot := protocol.SealChat(ks, tag[:], protocol.ChatBootstrapCounter(), rec)
-	stream := protocol.BuildChatHandshakeStream(eph.PublicKey().Bytes(), protocol.ChatHandshakeRegister, sealedBoot)
+	stream := protocol.BuildChatHandshakeStream(eph.PublicKey().Bytes(), protocol.ChatProtocolVersion, protocol.ChatHandshakeRegister, sealedBoot)
 	return openHandshake(t, ks, tag, feedStream(t, svc, tag, stream)), ks
 }
 
 func authHandshake(t *testing.T, svc *ChatService, qk [protocol.KeySize]byte, ekPub []byte, c simClient) (ref [protocol.ChatSelectorSize]byte, ks [protocol.KeySize]byte) {
 	t.Helper()
 	eph, _ := protocol.GenerateEphemeralKey()
-	ks, _ = protocol.ChatSessionKey(eph, ekPub, qk)
+	ks, _ = protocol.ChatSessionKey(eph, ekPub, protocol.ChatProtocolVersion, qk)
 	tag := handshakeTag()
 	ts := uint32(time.Now().Unix()) // within the server's skew window
 	kss, _ := protocol.ChatServerSharedKey(c.enc, ekPub, c.enc.PublicKey().Bytes(), ekPub)
 	proof := protocol.ChatAccountProof(kss, eph.PublicKey().Bytes(), c.addr, ts, simDomain)
 	boot := protocol.BuildChatAuthBootstrapPlain(c.addr, ts, proof)
 	sealedBoot := protocol.SealChat(ks, tag[:], protocol.ChatBootstrapCounter(), boot)
-	stream := protocol.BuildChatHandshakeStream(eph.PublicKey().Bytes(), protocol.ChatHandshakeAuth, sealedBoot)
+	stream := protocol.BuildChatHandshakeStream(eph.PublicKey().Bytes(), protocol.ChatProtocolVersion, protocol.ChatHandshakeAuth, sealedBoot)
 	return openHandshake(t, ks, tag, feedStream(t, svc, tag, stream)), ks
 }
 

@@ -29,8 +29,12 @@ const (
 )
 
 // ChatSessionKey derives the per-connection session key from an eph↔ek ECDH,
-// mixing the query key into the HKDF info so the public passphrase is required.
-func ChatSessionKey(own *ecdh.PrivateKey, peerPub []byte, queryKey [KeySize]byte) ([KeySize]byte, error) {
+// mixing the query key into the HKDF info so the public passphrase is required,
+// and the negotiated protocol version so a tampered/cleartext version byte in
+// the handshake can't downgrade: a different version yields a different key, so
+// the sealed bootstrap fails to open (fail-closed) rather than being accepted
+// under another version.
+func ChatSessionKey(own *ecdh.PrivateKey, peerPub []byte, protoVer byte, queryKey [KeySize]byte) ([KeySize]byte, error) {
 	var k [KeySize]byte
 	pub, err := ecdh.X25519().NewPublicKey(peerPub)
 	if err != nil {
@@ -40,7 +44,8 @@ func ChatSessionKey(own *ecdh.PrivateKey, peerPub []byte, queryKey [KeySize]byte
 	if err != nil {
 		return k, fmt.Errorf("chat: session ecdh: %w", err)
 	}
-	info := append([]byte(chatSessionInfo), queryKey[:]...)
+	info := append([]byte(chatSessionInfo), protoVer)
+	info = append(info, queryKey[:]...)
 	_, err = io.ReadFull(hkdf.New(sha256.New, secret, nil, info), k[:])
 	return k, err
 }
