@@ -26,7 +26,8 @@ var chatState = {
   notifyReady: false,
   promptCb: null,    // pending chatPrompt callback
   renderPending: false, // a poll/status render was deferred while a popup was open
-  guideAfterAvail: false // show "checking servers" + open the server sheet once availability resolves
+  guideAfterAvail: false, // show "checking servers" + open the server sheet once availability resolves
+  draft: '' // current compose text — single source of truth (see chatRenderThread)
 };
 
 // First-run server guidance: while NO chat server is enabled, every messenger
@@ -725,6 +726,7 @@ async function openChatThread(addr) {
   if (s) s.remove();
   chatState.view = 'thread';
   chatState.peer = addr;
+  chatState.draft = ''; // each conversation starts with an empty compose box
   if (!chatThreadPushed) {
     try { history.pushState({ view: 'chatThread' }, ''); chatThreadPushed = true; } catch (e) { }
   }
@@ -888,7 +890,12 @@ async function chatRenderThread() {
   // foreground poll and the ✓✓ status refresh both re-render the thread, and
   // rebuilding innerHTML would otherwise wipe whatever the user is typing.
   var prevInput = document.getElementById('chatInput');
-  var draft = prevInput ? prevInput.value : null;
+  // Draft is read from chatState (single source of truth), NOT the DOM: a
+  // background render (poll / status) that started before a send and resolves
+  // after it would otherwise restore the just-sent text, leaving it stuck in
+  // the box. chatState.draft is cleared synchronously on send, so any
+  // out-of-order render now restores the correct (empty) value.
+  var draft = chatState.draft || '';
   var hadFocus = !!prevInput && document.activeElement === prevInput;
   var selStart = prevInput ? prevInput.selectionStart : null;
   var selEnd = prevInput ? prevInput.selectionEnd : null;
@@ -964,9 +971,8 @@ async function chatRenderThread() {
     html += '<div class="chat-msg ' + (m.dir === 'in' ? 'in' : 'out') + '" dir="auto">' +
       '<span class="chat-msg-text">' + esc(m.text) + '</span>' +
       '<span class="chat-msg-meta">' +
-      '<button type="button" class="chat-msg-copy" title="' + escAttr(chatT('chat_copy')) +
-      '" aria-label="' + escAttr(chatT('chat_copy')) +
-      '" onclick="event.stopPropagation();chatCopyMsg(this)">' + icon('copy') + '</button>' +
+      '<button type="button" class="chat-msg-copy"' +
+      ' onclick="event.stopPropagation();chatCopyMsg(this)">' + esc(chatT('chat_copy')) + '</button>' +
       '<span class="chat-msg-time">' + chatFmtTime(m.ts) + esc(ticks) + '</span></span></div>' +
       '<div class="chat-clearfix"></div>';
   });
@@ -989,9 +995,9 @@ async function chatRenderThread() {
   if (body) body.scrollTop = keepScroll ? prevScroll : body.scrollHeight;
   // Restore the in-progress draft + caret before resizing the input.
   var inp = document.getElementById('chatInput');
-  if (inp && draft != null) {
+  if (inp) {
     inp.value = draft;
-    if (selStart != null) { try { inp.setSelectionRange(selStart, selEnd); } catch (e) { } }
+    if (draft && selStart != null) { try { inp.setSelectionRange(selStart, selEnd); } catch (e) { } }
   }
   // A send in flight survives this re-render: the compose row was just rebuilt,
   // so re-disable the input (chatInputResize already disables the button while
@@ -1030,6 +1036,7 @@ function chatInputResize() {
   var cc = document.getElementById('chatCharCount');
   var btn = document.getElementById('chatSendBtn');
   if (!inp) return;
+  chatState.draft = inp.value; // keep the source-of-truth draft in sync as the user types
   inp.style.height = 'auto';
   inp.style.height = Math.min(inp.scrollHeight, 120) + 'px';
   var max = chatMaxBytes();
@@ -1127,10 +1134,10 @@ async function sendChatMessage() {
       // re-disable the row, repaint a stale bar, or restore the sent draft.
       chatState.sending = false;
       chatState.sendProg = null;
-      // Clear the LIVE input by id: a re-render during the (possibly multi-
-      // second) send may have replaced the element captured above, leaving
-      // `inp` detached — clearing that would do nothing and the sent text would
-      // linger in the visible box, looking unsent even though it was delivered.
+      // Clear the draft at the source of truth so the upcoming re-render (and
+      // any background render still in flight) restores an empty box instead of
+      // the just-sent text. Also clear the live element for instant feedback.
+      chatState.draft = '';
       var liveInp = document.getElementById('chatInput');
       if (liveInp) liveInp.value = '';
       if (d.remaining != null) chatState.quota = { remaining: d.remaining, resetUnix: d.resetUnix };

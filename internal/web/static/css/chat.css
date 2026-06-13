@@ -492,7 +492,6 @@
   align-items: center;
   gap: 6px;
   font-size: 10px;
-  opacity: .7;
   margin-top: 3px;
   justify-content: flex-end
 }
@@ -501,27 +500,31 @@
   justify-content: flex-start
 }
 
-/* Per-message copy button: subtle (so it doesn't shout on every bubble) but
-   always present, so it works on touch where there is no hover. */
+/* Dim only the timestamp — the copy button must stay readable on both the
+   blue (out) and dark (in) bubbles. */
+.chat-msg-time {
+  opacity: .7
+}
+
+/* Per-message copy button: text chip that inherits the bubble's own text
+   colour (white on the blue out-bubble, normal on the in-bubble) so it always
+   has contrast. Subtle but always present (works on touch where no hover). */
 .chat-msg-copy {
   background: none;
-  border: 0;
-  padding: 2px;
-  margin: -2px;
-  cursor: pointer;
+  border: 1px solid currentColor;
   color: inherit;
-  opacity: .55;
-  line-height: 0;
-  border-radius: 5px
+  font-family: inherit;
+  font-size: var(--text-2xs);
+  cursor: pointer;
+  padding: 1px 8px;
+  line-height: 1.4;
+  opacity: .7;
+  border-radius: var(--radius-xs);
+  transition: opacity .15s
 }
 
 .chat-msg-copy:hover {
   opacity: 1
-}
-
-.chat-msg-copy svg {
-  width: 13px;
-  height: 13px
 }
 
 .chat-clearfix {
