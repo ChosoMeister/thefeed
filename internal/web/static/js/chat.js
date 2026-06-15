@@ -1284,7 +1284,7 @@ async function chatRenderThread() {
       if (sk && del < m.seq) pending[sk] = true;
     }
     html += '<div class="chat-msg ' + (m.dir === 'in' ? 'in' : 'out') + '" dir="auto">' +
-      '<span class="chat-msg-text">' + esc(m.text) + '</span>' +
+      '<span class="chat-msg-text">' + esc(m.text).replace(/🇮🇷/g, '<img src="/static/lion-sun.svg" alt="\u{1F981}☀️" style="height:1.1em;vertical-align:middle">') + '</span>' +
       '<span class="chat-msg-meta">' +
       '<button type="button" class="chat-msg-copy"' +
       ' onclick="event.stopPropagation();chatCopyMsg(this)">' + esc(chatT('chat_copy')) + '</button>' +

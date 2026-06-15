@@ -46,11 +46,12 @@ type chatIdentityFile struct {
 
 // chatStoredMsg is one thread message on disk.
 type chatStoredMsg struct {
-	Dir    string `json:"dir"` // "in" | "out"
-	Seq    uint32 `json:"seq"`
-	Text   string `json:"text"`
-	TS     int64  `json:"ts"`
-	Server string `json:"server,omitempty"` // server key (main feed domain)
+	Dir       string `json:"dir"` // "in" | "out"
+	Seq       uint32 `json:"seq"`
+	Text      string `json:"text"`
+	TS        int64  `json:"ts"`
+	Server    string `json:"server,omitempty"`    // server key (main feed domain)
+	LocalAddr string `json:"localAddr,omitempty"` // our address when this msg was stored
 }
 
 // chatThreadFile is one peer's conversation on disk.
@@ -140,6 +141,14 @@ func chatPostSendServer(current, boundAtStart, sentVia string) (string, bool) {
 // are contiguous, so anything at/below the watermark was definitely seen.
 func (th *chatThreadFile) replayedIn(server string, seq uint32) bool {
 	return seq <= th.AckedIn[server]
+}
+
+// resetAckedIn clears the incoming-replay watermark for server, used when a
+// server-side seq regression is detected (server reset its store).
+func (th *chatThreadFile) resetAckedIn(server string) {
+	if th.AckedIn != nil {
+		delete(th.AckedIn, server)
+	}
 }
 
 // markAckedIn raises the incoming-replay watermark for server; reports whether
@@ -662,6 +671,10 @@ func equalStrings(a, b []string) bool {
 func (h *chatHub) pollAllServers(ctx context.Context, progress client.ChatProgress) int {
 	h.mu.Lock()
 	idOK := h.identity != nil
+	var localAddr string
+	if idOK {
+		localAddr = client.ChatAddressString(h.identity.Addr)
+	}
 	h.mu.Unlock()
 	if !idOK {
 		return 0
@@ -675,7 +688,7 @@ func (h *chatHub) pollAllServers(ctx context.Context, progress client.ChatProgre
 		if !h.serverEnabled(ps.serverKey) || h.backedOff(ps, now) {
 			continue
 		}
-		n, err := h.pollServer(ctx, ps, progress)
+		n, err := h.pollServer(ctx, ps, progress, localAddr)
 		if err != nil {
 			h.setBackoff(ps, time.Now().Add(chatServerBackoff(err)))
 			continue
@@ -688,7 +701,7 @@ func (h *chatHub) pollAllServers(ctx context.Context, progress client.ChatProgre
 
 // pollServer fetches one server's inbox, stores new messages (tagged with the
 // server), and acks them.
-func (h *chatHub) pollServer(ctx context.Context, ps *perServerChat, progress client.ChatProgress) (int, error) {
+func (h *chatHub) pollServer(ctx context.Context, ps *perServerChat, progress client.ChatProgress, localAddr string) (int, error) {
 	h.pollMu.Lock()
 	defer h.pollMu.Unlock()
 
@@ -703,11 +716,27 @@ func (h *chatHub) pollServer(ctx context.Context, ps *perServerChat, progress cl
 	h.mu.Lock()
 	added := 0
 	maxSeq := map[string]uint32{}
+
+	// Detect server-side seq regression: if every incoming seq from a peer
+	// is at/below our acked watermark, the server likely reset its store.
+	// Collect the highest incoming seq per peer first, then reset the
+	// watermark for any peer whose max incoming seq regressed.
+	peerMax := map[string]uint32{}
 	for _, m := range msgs {
 		addr := client.ChatAddressString(m.From)
-		// ACK every fetched message — including ones already stored from a
-		// prior poll whose ACK was lost — else a lost ACK wedges the sender's
-		// per-pair quota until the message TTL-expires.
+		if m.Seq > peerMax[addr] {
+			peerMax[addr] = m.Seq
+		}
+	}
+	for addr, mx := range peerMax {
+		th := h.threads[addr]
+		if th != nil && th.AckedIn[ps.serverKey] > 0 && mx <= th.AckedIn[ps.serverKey] {
+				th.resetAckedIn(ps.serverKey)
+		}
+	}
+
+	for _, m := range msgs {
+		addr := client.ChatAddressString(m.From)
 		if m.Seq > maxSeq[addr] {
 			maxSeq[addr] = m.Seq
 		}
@@ -727,7 +756,7 @@ func (h *chatHub) pollServer(ctx context.Context, ps *perServerChat, progress cl
 		}
 		dup := false
 		for _, ex := range th.Msgs {
-			if ex.Dir == "in" && ex.Seq == m.Seq && ex.Server == ps.serverKey {
+			if ex.Dir == "in" && ex.Seq == m.Seq && ex.Server == ps.serverKey && ex.LocalAddr == localAddr {
 				dup = true
 				break
 			}
@@ -737,7 +766,7 @@ func (h *chatHub) pollServer(ctx context.Context, ps *perServerChat, progress cl
 		}
 		th.Msgs = append(th.Msgs, chatStoredMsg{
 			Dir: "in", Seq: m.Seq, Text: m.Text,
-			TS: time.Now().Unix(), Server: ps.serverKey,
+			TS: time.Now().Unix(), Server: ps.serverKey, LocalAddr: localAddr,
 		})
 		th.Unread++
 		added++
@@ -1066,10 +1095,16 @@ func (s *Server) handleChatEnable(w http.ResponseWriter, r *http.Request) {
 		// Register on the newly-enabled server (and pull mail) now, retrying a
 		// flaky network. pollServer opens a session, which auto-registers.
 		if req.On && ps != nil && ctx != nil {
+			h.mu.Lock()
+			la := ""
+			if h.identity != nil {
+				la = client.ChatAddressString(h.identity.Addr)
+			}
+			h.mu.Unlock()
 			go func() {
 				var lastErr error
 				for attempt := 0; attempt < chatEnableRegisterAttempts; attempt++ {
-					n, err := h.pollServer(ctx, ps, nil)
+					n, err := h.pollServer(ctx, ps, nil, la)
 					if err == nil {
 						h.setBackoff(ps, time.Time{}) // reachable → clear backoff
 						if n > 0 {
@@ -1234,9 +1269,16 @@ func (s *Server) handleChatSeed(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "invalid recovery code", 400)
 				return
 			}
+			changed := h.identity == nil || h.identity.Addr != id.Addr
 			h.identity = id
 			h.backedUp = true
 			h.saveIdentityLocked()
+			if changed {
+				for _, th := range h.threads {
+					th.AckedIn = nil
+				}
+				h.saveThreadsLocked()
+			}
 			h.rebuildServersLocked() // rebind all per-server clients to the new identity
 			writeJSON(w, map[string]any{"ok": true, "address": client.ChatAddressString(id.Addr)})
 		default:
