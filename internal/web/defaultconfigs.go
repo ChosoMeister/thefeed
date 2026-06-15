@@ -23,18 +23,30 @@ type defaultProfile struct {
 // content against it.
 var defaultProfiles = []defaultProfile{
 	{
-		Nickname:     "اخبار و تحلیل",
-		Domain:       b64("bndzLmVtampleS5kZQ=="),
-		Key:          b64("c2FydG8="),
-		ServerKey:    "8yIcxN4pJbepET0Vp2Yfz0NXYh_2wwP5n-Z62xxV3DI",
-		ExtraDomains: []string{b64("bndzMS5lbWpleS5iaXo="), b64("bndzLmVtamV5LmJpeg==")},
+		Nickname:  "اخبار و تحلیل",
+		Domain:    b64("bndzLnRoZWZlZWQud2Vic2l0ZQ=="),
+		Key:       b64("c2FydG8="),
+		ServerKey: "bsxz20Z9FWr1h24ATWHoo9cKwfphLpgLoJDhr-KT_f8",
+		ExtraDomains: []string{
+			b64("bndzLnRoZWZlZWQuYXNpYQ=="),
+			b64("d3MxLmZlZWR0aGVmZWVkLnN0b3Jl"),
+			b64("d3MxLnRoZWZlZWQuYXNpYQ=="),
+			b64("bndzLmZlZWR0aGVmZWVkLnN0b3Jl"),
+			b64("d3MxLnRoZWZlZWQud2Vic2l0ZQ=="),
+		},
 	},
 	{
-		Nickname:     "فیلترشکن",
-		Domain:       b64("Y2ZnLmVtampleS5kZQ=="),
-		Key:          b64("c2FydG8="),
-		ServerKey:    "B7KSHRn_qKPYHwAZxMAHRJ_B8pzePvoxhv4l8MfEXDI",
-		ExtraDomains: []string{b64("Y2ZnLmVtamV5LmJpeg=="), b64("Y2ZnMS5lbWpleS5iaXo=")},
+		Nickname:  "فیلترشکن",
+		Domain:    b64("Y2ZnLnRoZWZlZWQud2Vic2l0ZQ=="),
+		Key:       b64("c2FydG8="),
+		ServerKey: "z9gH9ZobPhMZFhB7n3aAX3Xvp3J4FZSeHn54DWQPFhE",
+		ExtraDomains: []string{
+			b64("Y2YyLnRoZWZlZWQud2Vic2l0ZQ=="),
+			b64("Y2ZnLnRoZWZlZWQuYXNpYQ=="),
+			b64("Y2YyLnRoZWZlZWQuYXNpYQ=="),
+			b64("Y2ZnLmZlZWR0aGVmZWVkLnN0b3Jl"),
+			b64("Y2cyLmZlZWR0aGVmZWVkLnN0b3Jl"),
+		},
 	},
 }
 
