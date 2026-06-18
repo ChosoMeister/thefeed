@@ -410,6 +410,18 @@
       border-color: color-mix(in oklab, var(--accent) 35%, var(--border))
     }
 
+    /* Brief highlight when "jump to post" lands on a saved Telemirror post. */
+    .tm-post-highlight {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 45%, transparent);
+      animation: tm-post-flash 2s ease
+    }
+
+    @keyframes tm-post-flash {
+      0%, 30% { background: color-mix(in oklab, var(--accent) 14%, var(--bg)) }
+      100% { background: var(--bg-elevated, var(--bg)) }
+    }
+
     .tm-post-head {
       display: flex;
       align-items: center;
@@ -808,6 +820,60 @@
       border-color: var(--accent);
       background: color-mix(in oklab, var(--accent) 10%, transparent)
     }
+
+    /* Save-to-Saved-Messages icon button (Fix 4a) — icon-only, beside copy. */
+    .tm-post-save {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 3px 5px;
+      border-radius: var(--radius-sm);
+      line-height: 0;
+      opacity: 0.55;
+      transition: opacity .15s, color .15s;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .tm-post-save .icon svg { width: 13px; height: 13px; }
+
+    .tm-post-save:hover {
+      opacity: 1;
+      color: var(--accent);
+    }
+
+    .tm-post-save-done,
+    .tm-post-save:disabled {
+      opacity: 1;
+      color: var(--accent);
+      cursor: default;
+    }
+
+    @media (hover: none) {
+      .tm-post-save { opacity: 0.7; }
+    }
+
+    /* Saved Messages shortcut entry in the channel list (Fix 4b). */
+    .tm-saved-shortcut {
+      border-bottom: 1px dashed var(--border);
+      margin-bottom: 6px;
+      padding-bottom: 12px;
+    }
+
+    .tm-saved-shortcut-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .tm-saved-shortcut-icon .icon svg { width: 20px; height: 20px; }
 
     /* Generic media tile (voice, audio, document, poll). */
     .tm-media-tile {

@@ -1431,7 +1431,7 @@ function renderMessages(msgs, gaps) {
       + (hasMediaCard ? ' has-media' : '')
       + (isOutgoing ? ' msg-outgoing' : '');
     var youTag = isOutgoing ? '<div class="media-tag you-tag">[YOU]</div>' : '';
-    html += '<div class="' + msgClasses + '" dir="auto">' + youTag + mediaHtml + textHtml + '<div class="msg-meta"><button class="msg-copy-btn" onclick="copyMsg(' + i + ')">' + t('copy') + '</button><span>#' + id + '</span><span>' + timeStr + '</span></div></div>';
+    html += '<div class="' + msgClasses + '" dir="auto">' + youTag + mediaHtml + textHtml + '<div class="msg-meta"><button class="msg-save-btn" aria-label="' + (t('forward_to_saved') || 'Save') + '" onclick="msgSaveToggle(' + id + ', this)">' + icon('bookmark') + '</button><button class="msg-copy-btn" onclick="copyMsg(' + i + ')">' + t('copy') + '</button><span>#' + id + '</span><span>' + timeStr + '</span></div></div>';
   }
   el.innerHTML = html;
   try { mediaTryRestoreVisibleCards(); } catch (e) { }

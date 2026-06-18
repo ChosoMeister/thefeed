@@ -416,6 +416,13 @@
   function tmRenderChannels() {
     var box = document.getElementById('tmChannelsList');
     var html = '';
+    // Saved Messages shortcut — navigate to Saved from inside the Telemirror
+    // modal without having to close it first.
+    html += '<div class="tm-channel-item tm-saved-shortcut" onclick="tmCloseThenSaved()">'
+      + '<div class="tm-saved-shortcut-icon">' + window.icon('bookmark') + '</div>'
+      + '<div class="tm-channel-item-meta"><div class="tm-channel-item-name">'
+      + tmEsc(tmI18n('saved_messages', 'Saved Messages'))
+      + '</div></div></div>';
     for (var i = 0; i < tmChannels.length; i++) {
       var c = tmChannels[i];
       var active = (c.username.toLowerCase() === tmActive.toLowerCase()) ? ' active' : '';
@@ -616,7 +623,9 @@
       // p.id looks like "channel/12345" — show only the numeric part.
       var msgNum = (p.id || '').split('/').pop();
 
-      html += '<div class="tm-post" data-pid="' + pid + '" data-msgid="' + tmEscAttr(msgNum || '') + '">';
+      // data-post-id carries the stable Telegram locator ("channel/msgNum") so a
+      // post saved to Saved Messages can later jump back to this exact post.
+      html += '<div class="tm-post" data-pid="' + pid + '" data-msgid="' + tmEscAttr(msgNum || '') + '" data-post-id="' + tmEscAttr(p.id || '') + '">';
 
       // Head: author + msg id + edited + copy button. Time at the bottom.
       html += '<div class="tm-post-head">';
@@ -627,6 +636,13 @@
         html += '<button class="tm-post-copy"'
           + ' onclick="tmCopyPost(this)">'
           + tmEsc(tmI18n('copy', 'Copy'))
+          + '</button>';
+        // Save-to-Saved-Messages button (forwards the post into Saved).
+        html += '<button class="tm-post-save"'
+          + ' title="' + tmEscAttr(tmI18n('forward_to_saved', 'Save to Saved Messages')) + '"'
+          + ' aria-label="' + tmEscAttr(tmI18n('forward_to_saved', 'Save to Saved Messages')) + '"'
+          + ' onclick="tmSavePostClick(this)">'
+          + window.icon('bookmark')
           + '</button>';
       }
       html += '</div>';
@@ -887,6 +903,76 @@
     } else {
       tmCopyFallback(text, done);
     }
+  };
+
+  // tmSavePostClick — inline-onclick shim for the .tm-post-save button: resolves
+  // the post's pid + locator from the DOM and forwards to tmSavePost. Passing a
+  // null channel makes tmSavePost fall back to the active channel (tmActive).
+  window.tmSavePostClick = function (btn) {
+    var post = btn.closest ? btn.closest('.tm-post') : null;
+    if (!post) return;
+    window.tmSavePost(post.getAttribute('data-pid'), null, btn, post.getAttribute('data-post-id'));
+  };
+
+  // tmSavePost — forward a Telemirror post into Saved Messages as a read-only
+  // kind:"chat" snapshot. tmSource ("channel/msgNum") lets Saved jump back here.
+  window.tmSavePost = async function (pid, channelUsername, btn, tmSource) {
+    var text = pid && tmPostText[pid];
+    if (!text && !pid) return;
+    try {
+      if (btn) { btn.disabled = true; }
+      var payload = {
+        text: text || '',
+        contactName: channelUsername || tmActive,
+        tmSource: tmSource || ''
+      };
+      var r = await fetch('/api/saved/from-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (r.status === 423) {
+        tmToast(tmI18n('saved_locked', 'Saved Messages is locked'));
+        if (btn) btn.disabled = false;
+        return;
+      }
+      if (!r.ok) {
+        tmToast(tmI18n('saved_save_failed', 'Could not save'));
+        if (btn) btn.disabled = false;
+        return;
+      }
+      tmToast(tmI18n('saved_toast', 'Forwarded to Saved'));
+      if (btn) {
+        btn.classList.add('tm-post-save-done');
+        // Don't re-enable — visually indicate "already saved"
+      }
+      if (typeof updateSavedBadge === 'function') updateSavedBadge();
+    } catch (e) {
+      tmToast(tmI18n('saved_save_failed', 'Could not save'));
+      if (btn) btn.disabled = false;
+    }
+  };
+
+  // tmCloseThenSaved — close the Telemirror modal and open Saved Messages.
+  // Open Saved FIRST (its overlay hides the transition so home never flashes),
+  // then close the modal. closeTelemirror() unwinds history with history.go(),
+  // whose popstate(s) core.js turns into openSidebar() (clearing .chat-open on
+  // mobile, which would collapse Saved back to home). The number of popstates
+  // isn't predictable, so self-heal: for a short window, re-assert .chat-open
+  // whenever a stray unwind popstate clears it while Saved is active.
+  window.tmCloseThenSaved = function () {
+    if (typeof openSavedMessages === 'function') openSavedMessages();
+    window.closeTelemirror();
+    var app = document.getElementById('app');
+    if (!app) return;
+    var start = (window.performance && performance.now) ? performance.now() : Date.now();
+    (function guardChatOpen() {
+      if (window.viewingSaved && !app.classList.contains('chat-open')) {
+        app.classList.add('chat-open');
+      }
+      var now = (window.performance && performance.now) ? performance.now() : Date.now();
+      if (now - start < 500) requestAnimationFrame(guardChatOpen);
+    })();
   };
   function tmCopyFallback(text, done) {
     var ta = document.createElement('textarea');

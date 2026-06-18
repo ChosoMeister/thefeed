@@ -285,6 +285,14 @@ type Server struct {
 	// fetch. Entries expire after 7 days.
 	mediaCache *mediaDiskCache
 
+	// savedMedia is a never-reaped disk store (ttl=0) for media bytes that
+	// belong to saved messages, so they survive mediaCache TTL reaping.
+	savedMedia *mediaDiskCache
+
+	// savedCrypto seals the Saved store (saved.json) and saved-media blobs at
+	// rest. nil only in legacy unit tests that construct Server{} directly.
+	savedCrypto *savedCrypto
+
 	// rescanReplaceList: set by handleRescan, consumed (and cleared)
 	// by the next SetOnScanDone callback so an explicit user rescan
 	// overwrites the selected list instead of just topping it up.
@@ -293,6 +301,13 @@ type Server struct {
 
 	// profilesMu serialises read-modify-write cycles on profiles.json.
 	profilesMu sync.Mutex
+	// savedMu serialises read-modify-write cycles on the Saved store and guards
+	// the s.savedCrypto pointer + its mutable fields. RWMutex so the lock-state
+	// reads on the hot path (handleSavedList etc.) don't serialise behind a slow
+	// Argon2 setPassphrase. NEVER take the read lock while already holding the
+	// write lock (Go RWMutex isn't reentrant) — the store helpers below hold the
+	// write lock, so guard at handler entry, before calling them.
+	savedMu sync.RWMutex
 
 	// Optional, removable backup feed (Telegram-via-Translate proxy).
 	telemirror *telemirrorHub
@@ -376,6 +391,19 @@ func New(dataDir string, port int, host string, password string) (*Server, error
 	if mediaCache != nil {
 		go mediaCache.Cleanup()
 		go s.runMediaCacheSweep()
+	}
+
+	// Saved store at-rest encryption: load or initialise the keyring (device
+	// mode on first run). If this fails the Saved feature degrades to plaintext
+	// rather than blocking startup.
+	if sc, scErr := loadSavedCrypto(dataDir); scErr == nil {
+		s.savedCrypto = sc
+	}
+
+	// saved-media never expires (ttl=0): saved messages keep their bytes.
+	if savedMedia, smErr := newMediaDiskCache(filepath.Join(dataDir, "saved-media"), 0); smErr == nil {
+		savedMedia.crypto = s.savedCrypto
+		s.savedMedia = savedMedia
 	}
 
 	// Migrate per-profile resolvers into the shared bank on first run.
@@ -470,6 +498,19 @@ func (s *Server) serve(ln net.Listener) error {
 	// contract.
 	mux.HandleFunc("/api/media/get", s.handleMediaGet)
 	mux.HandleFunc("/api/media/progress", s.handleMediaProgress)
+	mux.HandleFunc("/api/saved", s.handleSaved)
+	mux.HandleFunc("/api/saved/note", s.handleSavedNote)
+	mux.HandleFunc("/api/saved/upload", s.handleSavedUpload)
+	mux.HandleFunc("/api/saved/from-chat", s.handleSavedFromChat)
+	mux.HandleFunc("/api/saved/lock", s.handleSavedLock)
+	mux.HandleFunc("/api/saved/lock/remove", s.handleSavedLockRemove)
+	mux.HandleFunc("/api/saved/lock/reset", s.handleSavedLockReset)
+	mux.HandleFunc("/api/saved/unlock", s.handleSavedUnlock)
+	mux.HandleFunc("/api/saved/pin", s.handleSavedPin)
+	mux.HandleFunc("/api/saved/count", s.handleSavedCount)
+	mux.HandleFunc("/api/saved/seen", s.handleSavedSeen)
+	mux.HandleFunc("/api/saved/media", s.handleSavedMedia)
+	mux.HandleFunc("/api/saved/media/persist", s.handleSavedMediaPersist)
 	// Optional telemirror feature — see internal/telemirror/.
 	mux.HandleFunc("/api/telemirror/channels", s.telemirror.handleChannels)
 	mux.HandleFunc("/api/telemirror/channel/", s.telemirror.handleChannel)

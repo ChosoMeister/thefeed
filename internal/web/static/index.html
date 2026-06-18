@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="/static/css/media.css">
   <link rel="stylesheet" href="/static/css/components.css">
   <link rel="stylesheet" href="/static/css/responsive.css">
+  <link rel="stylesheet" href="/static/css/saved.css">
 </head>
 
 <body>
@@ -124,6 +125,12 @@
         <input class="sidebar-search" id="channelSearch" type="text" data-i18n-ph="search" placeholder="Search..."
           oninput="filterChannels()">
       </div>
+      <div class="saved-channel-entry" id="savedChannelBtn" role="button" tabindex="0"
+        onclick="openSavedMessages()" aria-label="Saved Messages">
+        <span class="saved-entry-icon" data-icon="bookmark"></span>
+        <span class="saved-entry-name" data-i18n="saved_messages">Saved Messages</span>
+        <span class="saved-badge" id="savedBadge" hidden></span>
+      </div>
       <div class="channel-list" id="channelList">
         <div style="padding:20px;text-align:center;color:var(--text-dim);font-size:13px" data-i18n="no_channels">No
           channels yet</div>
@@ -213,8 +220,8 @@
           <li>BNB Chain</li>
         </ul>
       </div>
-      <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px"
-        data-i18n="wallet_address">Wallet address</label>
+      <span style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px"
+        data-i18n="wallet_address">Wallet address</span>
       <div class="donate-addr-row">
         <code id="donateAddr" class="donate-addr" data-full="0xe73f022f668c57cce79feccd875ac7332311013a"
           title="0xe73f022f668c57cce79feccd875ac7332311013a">0xe73f022f…2311013a</code>
@@ -354,26 +361,26 @@
       <!-- ===== Display tab ===== -->
       <div class="settings-panel" id="settingsPanelDisplay">
         <div class="font-size-row">
-          <label data-i18n="font_size">Font Size</label>
+          <label for="fontSizeSlider" data-i18n="font_size">Font Size</label>
           <input type="range" id="fontSizeSlider" min="11" max="22" value="14" oninput="previewFontSize(this.value)">
           <span class="font-size-val" id="fontSizeVal">14</span>
         </div>
         <div class="form-group">
-          <label data-i18n="theme">Theme</label>
+          <span class="group-label" data-i18n="theme">Theme</span>
           <div class="theme-row">
             <button class="theme-btn" id="themeDark" onclick="setTheme('dark')" data-i18n="theme_dark">Dark</button>
             <button class="theme-btn" id="themeLight" onclick="setTheme('light')" data-i18n="theme_light">Light</button>
           </div>
         </div>
         <div class="form-group">
-          <label data-i18n="language">Language</label>
+          <span class="group-label" data-i18n="language">Language</span>
           <div class="lang-row">
             <button class="lang-btn" id="langFa" onclick="setLang('fa')">&#1601;&#1575;&#1585;&#1587;&#1740;</button>
             <button class="lang-btn" id="langEn" onclick="setLang('en')">English</button>
           </div>
         </div>
         <div class="form-group" style="margin-top:12px">
-          <label data-i18n="bg_image">Background Image</label>
+          <label for="bgImageInput" data-i18n="bg_image">Background Image</label>
           <div style="display:flex;gap:6px;align-items:center">
             <input type="file" id="bgImageInput" accept="image/*" style="flex:1;font-size:12px;color:var(--text)"
               onchange="applyBgImage()">
@@ -427,7 +434,7 @@
       <div class="settings-panel" id="settingsPanelConnection" style="display:none">
         <div class="form-group">
           <div class="help-row">
-            <label data-i18n="query_mode">Query Mode</label>
+            <label for="cfgQueryMode" data-i18n="query_mode">Query Mode</label>
             <span class="help-toggle" onclick="toggleHelp('helpQueryMode')" title="?" data-icon="info"></span>
           </div>
           <select id="cfgQueryMode">
@@ -438,7 +445,7 @@
         </div>
         <div class="form-group">
           <div class="help-row">
-            <label data-i18n="rate_limit">Concurrent block fetches</label>
+            <label for="cfgRateLimit" data-i18n="rate_limit">Concurrent block fetches</label>
             <span class="help-toggle" onclick="toggleHelp('helpRateLimit')" title="?" data-icon="info"></span>
           </div>
           <input type="number" id="cfgRateLimit" value="10" min="1" step="1">
@@ -446,7 +453,7 @@
         </div>
         <div class="form-group">
           <div class="help-row">
-            <label data-i18n="scatter">Parallel resolvers per block</label>
+            <label for="cfgScatter" data-i18n="scatter">Parallel resolvers per block</label>
             <span class="help-toggle" onclick="toggleHelp('helpScatter')" title="?" data-icon="info"></span>
           </div>
           <input type="number" id="cfgScatter" value="6" min="1" max="10">
@@ -454,7 +461,7 @@
         </div>
         <div class="form-group">
           <div class="help-row">
-            <label data-i18n="dns_timeout">DNS Query Timeout (seconds)</label>
+            <label for="cfgTimeout" data-i18n="dns_timeout">DNS Query Timeout (seconds)</label>
             <span class="help-toggle" onclick="toggleHelp('helpTimeout')" title="?" data-icon="info"></span>
           </div>
           <input type="number" id="cfgTimeout" value="10" min="1" max="60" step="1">
@@ -579,12 +586,12 @@
       <h2 style="margin-top:0"><span data-i18n="share">Share</span> &middot; <span id="shareModalProfileName"
           style="color:var(--text-dim);font-weight:400"></span></h2>
       <div class="form-group">
-        <label data-i18n="share_source">Source</label>
+        <label for="shareModalSource" data-i18n="share_source">Source</label>
         <select id="shareModalSource" onchange="reloadShareModalResolvers()"></select>
       </div>
       <div class="form-group">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <label style="margin:0" data-i18n="select_resolvers_export">Resolvers to include</label>
+          <span class="group-label" style="margin:0" data-i18n="select_resolvers_export">Resolvers to include</span>
           <div style="display:flex;gap:4px">
             <button type="button" class="btn btn-flat" style="font-size:11px;padding:3px 8px"
               onclick="toggleAllShareModalResolvers(true)" data-i18n="select_all">All</button>
@@ -597,7 +604,7 @@
         </div>
       </div>
       <div class="form-group">
-        <label data-i18n="share_uri">Share URI</label>
+        <label for="shareModalUri" data-i18n="share_uri">Share URI</label>
         <textarea id="shareModalUri" readonly rows="3"
           style="width:100%;font-family:monospace;font-size:12px;resize:vertical;box-sizing:border-box"></textarea>
       </div>
@@ -613,19 +620,19 @@
     <div class="modal">
       <h2 id="profileEditorTitle" data-i18n="new_profile">New Profile</h2>
       <div id="peWarning" class="tg-warning"></div>
-      <div class="form-group"><label data-i18n="nickname">Nickname</label><input id="peNick" maxlength="32"
+      <div class="form-group"><label for="peNick" data-i18n="nickname">Nickname</label><input id="peNick" maxlength="32"
           placeholder="My Server" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
       </div>
-      <div class="form-group"><label data-i18n="domain">Domain</label><input id="peDomain" placeholder="t.example.com"
+      <div class="form-group"><label for="peDomain" data-i18n="domain">Domain</label><input id="peDomain" placeholder="t.example.com"
           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
       </div>
-      <div class="form-group"><label data-i18n="passphrase">Passphrase</label><input type="password" id="peKey"
+      <div class="form-group"><label for="peKey" data-i18n="passphrase">Passphrase</label><input type="password" id="peKey"
           placeholder="..."></div>
-      <div class="form-group"><label data-i18n="server_key">Server public key (sk)</label><input id="peServerKey"
+      <div class="form-group"><label for="peServerKey" data-i18n="server_key">Server public key (sk)</label><input id="peServerKey"
           placeholder="server public key (sk= from config)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
           oninput="updateServerKeyHint()" style="direction:ltr;text-align:left">
         <div id="peServerKeyHint" style="font-size:11px;margin-top:4px;color:var(--text-dim)"></div></div>
-      <div class="form-group"><label data-i18n="extra_domains">Extra domains (comma-separated)</label><input id="peExtraDomains"
+      <div class="form-group"><label for="peExtraDomains" data-i18n="extra_domains">Extra domains (comma-separated)</label><input id="peExtraDomains"
           placeholder="nws2.example.com, ..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
           style="direction:ltr;text-align:left"></div>
       <!-- Channel Management (editing only) -->
@@ -655,7 +662,7 @@
     <div class="modal" style="max-width:380px">
       <h2 data-i18n="export_title">Copy Messages</h2>
       <div class="export-row">
-        <label data-i18n="export_count">Number of messages</label>
+        <label for="exportCount" data-i18n="export_count">Number of messages</label>
         <div style="display:flex;align-items:center;gap:8px">
           <button class="btn btn-outline"
             onclick="var e=document.getElementById('exportCount');e.value=Math.max(1,parseInt(e.value||1)-1)"
@@ -725,7 +732,7 @@
           <div style="font-size:13px;font-weight:600;margin-bottom:6px" data-i18n="cleanup_title">Remove Bad Resolvers
           </div>
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            <label style="font-size:12px;white-space:nowrap" data-i18n="min_score">Min score:</label>
+            <label for="bankCleanupSlider" style="font-size:12px;white-space:nowrap" data-i18n="min_score">Min score:</label>
             <input type="range" id="bankCleanupSlider" min="0.01" max="0.5" step="0.01" value="0.10" style="flex:1"
               oninput="previewBankCleanup()">
             <span id="bankCleanupValue"
@@ -790,7 +797,7 @@
       <div id="scannerConfig">
         <div class="form-group">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-            <label data-i18n="scanner_targets">IPs or CIDRs (one per line)</label>
+            <label for="scanTargets" data-i18n="scanner_targets">IPs or CIDRs (one per line)</label>
             <div style="display:flex;gap:4px">
               <button class="btn btn-flat" onclick="document.getElementById('scanTargets').value='';updateScanIpCount()"
                 style="font-size:12px;padding:4px 10px"><span data-icon="delete"></span> <span data-i18n="scanner_clear_targets">Clear</span></button>
@@ -808,7 +815,7 @@
           </div>
         </div>
         <div class="form-group">
-          <label data-i18n="scanner_profile">Profile</label>
+          <label for="scanProfile" data-i18n="scanner_profile">Profile</label>
           <select id="scanProfile" style="width:100%"></select>
         </div>
         <details style="margin-bottom:12px">
@@ -816,22 +823,22 @@
             data-i18n="scanner_advanced">Advanced options</summary>
           <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div class="form-group">
-              <label data-i18n="query_mode">Query Mode</label>
+              <label for="scanQueryMode" data-i18n="query_mode">Query Mode</label>
               <select id="scanQueryMode" style="width:100%">
                 <option value="single">Single label</option>
                 <option value="double">Multi-label</option>
               </select>
             </div>
             <div class="form-group">
-              <label data-i18n="scanner_rate_limit">Concurrency</label>
+              <label for="scanRateLimit" data-i18n="scanner_rate_limit">Concurrency</label>
               <input type="number" id="scanRateLimit" value="50" min="1" max="500">
             </div>
             <div class="form-group">
-              <label data-i18n="scanner_timeout">Timeout (s)</label>
+              <label for="scanTimeout" data-i18n="scanner_timeout">Timeout (s)</label>
               <input type="number" id="scanTimeout" value="10" min="1" max="60">
             </div>
             <div class="form-group">
-              <label data-i18n="scanner_max_ips">Max IPs (0=all)</label>
+              <label for="scanMaxIPs" data-i18n="scanner_max_ips">Max IPs (0=all)</label>
               <input type="number" id="scanMaxIPs" value="0" min="0">
             </div>
           </div>
@@ -928,6 +935,7 @@
   <script src="/static/js/log.js"></script>
   <script src="/static/js/ui.js"></script>
   <script src="/static/js/scanner.js"></script>
+  <script src="/static/js/saved.js"></script>
   <script src="/static/js/bank.js"></script>
   <script src="/static/js/main.js"></script>
   <!-- BEGIN telemirror -->
