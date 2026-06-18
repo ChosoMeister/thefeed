@@ -479,6 +479,8 @@ func (s *Server) serve(ln net.Listener) error {
 	// Chat messenger endpoints — see handlers_chat.go.
 	mux.HandleFunc("/api/chat/info", s.handleChatInfo)
 	mux.HandleFunc("/api/chat/availability", s.handleChatAvailability)
+	mux.HandleFunc("/api/chat/servers", s.handleChatServers)
+	mux.HandleFunc("/api/chat/probe", s.handleChatProbeServer)
 	mux.HandleFunc("/api/chat/enable", s.handleChatEnable)
 	mux.HandleFunc("/api/chat/seed", s.handleChatSeed)
 	mux.HandleFunc("/api/chat/contacts", s.handleChatContacts)

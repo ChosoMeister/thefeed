@@ -436,7 +436,12 @@ async function chatCheckAvailability(force) {
     for (var i = 0; i < attempts; i++) {
       try {
         var r = await chatFetchTimeout(availURL, CHAT_AVAIL_TIMEOUT_MS);
-        chatState.avail = await r.json();
+        var fresh = await r.json();
+        // Cache-served responses omit limits; keep the last known ones.
+        if (fresh && !fresh.limits && chatState.avail && chatState.avail.limits) {
+          fresh.limits = chatState.avail.limits;
+        }
+        chatState.avail = fresh;
       } catch (e) { chatState.avail = { available: false, reason: 'chat_err_generic' }; }
       if (!chatState.open) break;                 // user left — stop probing
       if (chatAvailServers().length > 0) break;   // found a chat-capable server
@@ -857,12 +862,20 @@ function chatServerSheet() {
     var state = !sv.available ? chatT('chat_server_unreachable')
       : (sv.enabled ? chatT('chat_server_on') : chatT('chat_server_off'));
     var action = sv.enabled ? chatT('chat_server_turn_off') : chatT('chat_server_turn_on');
-    // No turn-on button for a server with no chat: there's nothing to enable.
-    // An enabled-but-unreachable server keeps its "turn off" so the user can
-    // still opt out.
-    var btn = (sv.available || sv.enabled) ?
-      '<button class="chat-btn-soft" onclick="chatToggleServer(\'' + escAttr(sv.key) + '\',' +
-      (sv.enabled ? 'false' : 'true') + ')">' + esc(action) + '</button>' : '';
+    // No button for a chatless server; busy state while a toggle is in flight;
+    // "Check again" for a transiently-unreachable one.
+    var btn = '';
+    if (sv.toggling || sv.checking) {
+      btn = '<button class="chat-btn-soft chat-btn-busy" disabled>' + esc(chatT('chat_server_connecting')) + '</button>';
+    } else if (sv.available || sv.enabled) {
+      // Accent pill for "Turn on", plain for "Turn off".
+      var cls = sv.enabled ? 'chat-btn-soft' : 'chat-btn-soft chat-btn-enable';
+      btn = '<button class="' + cls + '" onclick="chatToggleServer(\'' + escAttr(sv.key) + '\',' +
+        (sv.enabled ? 'false' : 'true') + ')">' + esc(action) + '</button>';
+    } else if (sv.reason !== 'chat_err_disabled') {
+      btn = '<button class="chat-btn-soft" onclick="chatRecheckServer(\'' + escAttr(sv.key) + '\')">' +
+        esc(chatT('chat_server_recheck')) + '</button>';
+    }
     items += '<div class="chat-server-row">' +
       '<div class="chat-server-info"><div class="chat-server-name">' + esc(label) + '</div>' +
       '<div class="chat-server-state' + (sv.enabled ? ' on' : '') + (sv.available ? '' : ' off') + '">' + esc(state) + '</div></div>' +
@@ -876,21 +889,70 @@ function chatServerSheet() {
 // chatToggleServer turns the messenger on/off for one server. Turning it on
 // publishes the user's address to that server (and only that server).
 async function chatToggleServer(key, on) {
+  if (!chatState.avail) chatState.avail = { available: false, servers: [] };
+  var list = chatState.avail.servers || (chatState.avail.servers = []);
+  var row = null;
+  list.forEach(function (s) { if (s.key === key) row = s; });
+  if (!row) { row = { key: key }; list.push(row); }
+  // Enabling registers synchronously; ignore repeat taps while in flight and
+  // show the button busy so stacked taps don't fire racing registers.
+  if (row.toggling) return;
+  row.toggling = true;
+  chatServerSheet();
+  var data = null, ok = false;
   try {
     var r = await fetch('/api/chat/enable', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'server', server: key, on: on })
     });
-    if (!r.ok) { showToast(chatT('chat_err_generic')); return; }
-  } catch (e) { showToast(chatT('chat_err_generic')); return; }
-  // Reflect the change locally so the sheet updates instantly, then re-probe.
-  var list = (chatState.avail && chatState.avail.servers) || [];
-  list.forEach(function (s) { if (s.key === key) s.enabled = on; });
-  if (chatState.avail) chatState.avail.available = chatUsableServers().length > 0;
+    ok = r.ok;
+    if (ok) data = await r.json();
+  } catch (e) { ok = false; }
+  row.toggling = false;
+  if (!ok) { showToast(chatT('chat_err_generic')); chatServerSheet(); return; }
+  // Trust the enable response's verdict directly; a fresh probe could transiently
+  // fail and flip the just-enabled server back to unavailable.
+  row.enabled = on;
+  if (on && data) { row.available = !!data.available; if (data.reason) row.reason = data.reason; }
+  chatState.avail.available = chatUsableServers().length > 0;
   chatServerSheet();
   if (chatState.view === 'list') chatRenderList();
-  chatCheckAvailability();
+  // Surface a real registration failure rather than leaving the server
+  // toggled-on-but-unusable with no explanation.
+  if (on && data && data.available === false) {
+    showToast(chatT(data.reason || 'chat_err_unreachable'));
+  }
 }
+
+// chatRecheckServer force-probes one server, ignoring cache/backoff.
+async function chatRecheckServer(key) {
+  if (!chatState.avail) chatState.avail = { available: false, servers: [] };
+  var list = chatState.avail.servers || (chatState.avail.servers = []);
+  var row = null;
+  list.forEach(function (s) { if (s.key === key) row = s; });
+  if (!row) { row = { key: key }; list.push(row); }
+  if (row.checking || row.toggling) return;
+  row.checking = true;
+  chatServerSheet();
+  var data = null, ok = false;
+  try {
+    // Generous timeout: the probe retries hard on a flaky net (server-side).
+    var r = await chatFetchTimeout('/api/chat/probe?retry=1&server=' + encodeURIComponent(key), 55000);
+    ok = r.ok;
+    if (ok) data = await r.json();
+  } catch (e) { ok = false; }
+  row.checking = false;
+  if (ok && data && data.server) {
+    row.available = !!data.server.available;
+    row.reason = data.server.reason || '';
+  } else if (!ok) {
+    showToast(chatT('chat_err_generic'));
+  }
+  chatState.avail.available = chatUsableServers().length > 0;
+  chatServerSheet();
+  if (chatState.view === 'list') chatRenderList();
+}
+window.chatRecheckServer = chatRecheckServer;
 
 function chatStartNew() {
   var inp = document.getElementById('chatAddAddr');

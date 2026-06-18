@@ -411,6 +411,26 @@
   color: var(--accent)
 }
 
+/* Prominent "Turn on" in the server sheet: a filled accent pill so it's clear
+   the user is meant to tap it to activate the messenger. */
+.chat-btn-enable {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 600
+}
+
+.chat-btn-enable:hover {
+  color: #fff;
+  filter: brightness(1.05)
+}
+
+/* In-flight: dimmed and non-interactive while the server registers. */
+.chat-btn-busy {
+  opacity: .6;
+  cursor: default
+}
+
 .chat-btn-primary {
   background: var(--accent);
   color: #fff;
