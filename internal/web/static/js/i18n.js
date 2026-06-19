@@ -399,6 +399,33 @@ var I18N = {
     chat_sound_on: 'صدای پیام جدید روشن است',
     chat_sound_off: 'صدای پیام جدید خاموش شد',
     // END chat
+    saved_messages: 'پیام‌های ذخیره‌شده',
+    forward_to_saved: 'ارسال به ذخیره‌شده',
+    remove_from_saved: 'حذف از ذخیره‌شده',
+    saved_toast: 'به ذخیره‌شده ارسال شد',
+    unsaved_toast: 'از ذخیره‌شده حذف شد',
+    saved_empty: 'پیام‌های مهم را ذخیره کنید تا بعدا سریع پیدا کنید.',
+    search_saved: 'جستجو در پیام‌های ذخیره‌شده...',
+    jump_to_original: 'رفتن به پیام',
+    msg_not_in_cache: 'پیام دیگر در کش نیست',
+    channel_removed: 'کانال حذف شده',
+    config_removed: 'کانفیگ حذف شده',
+    note_placeholder: 'یادداشت بنویسید...',
+    saved_save_failed: 'ذخیره نشد',
+    upload_file: 'بارگذاری فایل',
+    uploading: 'در حال بارگذاری…',
+    file_too_large: 'فایل بزرگ‌تر از حد مجاز است (حداکثر ۵۰ مگابایت)',
+    saved_locked: 'پیام‌های ذخیره‌شده قفل است',
+    enter_passphrase: 'گذرواژه را وارد کنید',
+    set_passphrase: 'تعیین گذرواژه',
+    set_passphrase_desc: 'پیام‌های ذخیره‌شده را با یک گذرواژه رمزنگاری می‌کند. در هر نشست باید قفل را باز کنید.',
+    wrong_passphrase: 'گذرواژه اشتباه است',
+    reset_saved: 'بازنشانی پیام‌های ذخیره‌شده',
+    reset_saved_confirm: 'گذرواژه فراموش شده؟ این کار همه‌ی پیام‌های ذخیره‌شده‌ی رمزگذاری‌شده را برای همیشه حذف می‌کند. ادامه می‌دهید؟',
+    pin: 'سنجاق کردن',
+    unpin: 'برداشتن سنجاق',
+    edit: 'ویرایش',
+    copy_text: 'کپی متن',
   },
   en: {
     search: 'Search...', settings: 'Settings', profiles: 'Profiles',
@@ -799,6 +826,33 @@ var I18N = {
     chat_sound_on: 'New-message sound on',
     chat_sound_off: 'New-message sound muted',
     // END chat
+    saved_messages: 'Saved Messages',
+    forward_to_saved: 'Forward to Saved',
+    remove_from_saved: 'Remove from Saved',
+    saved_toast: 'Forwarded to Saved',
+    unsaved_toast: 'Removed from Saved',
+    saved_empty: 'Bookmark important messages to find them quickly later.',
+    search_saved: 'Search saved messages...',
+    jump_to_original: 'Jump',
+    msg_not_in_cache: 'Message no longer in cache',
+    channel_removed: 'channel removed',
+    config_removed: 'config removed',
+    note_placeholder: 'Write a note...',
+    saved_save_failed: 'Could not save',
+    upload_file: 'Upload file',
+    uploading: 'Uploading…',
+    file_too_large: 'File is too large (max 50 MB)',
+    saved_locked: 'Saved Messages is locked',
+    enter_passphrase: 'Enter passphrase',
+    set_passphrase: 'Set passphrase',
+    set_passphrase_desc: 'Encrypts your saved messages with a passphrase. You will need to unlock each session.',
+    wrong_passphrase: 'Wrong passphrase',
+    reset_saved: 'Reset Saved Messages',
+    reset_saved_confirm: 'Forgot your passphrase? This permanently deletes all encrypted saved messages. Continue?',
+    pin: 'Pin',
+    unpin: 'Unpin',
+    edit: 'Edit',
+    copy_text: 'Copy text',
   }
 };
 // Order: native bridge (iOS/Android) → localStorage → 'fa'.
@@ -840,6 +894,12 @@ function applyLang() {
   // Profile button label: shows the active profile name, or a translated
   // "Set Up" when none exist (the span has no data-i18n by design).
   if (typeof renderProfileBtn === 'function') renderProfileBtn();
+  // Re-render views so RTL/LTR layout updates take effect immediately
+  if (typeof renderSavedView === 'function') {
+    var _msgsEl = document.getElementById('messages');
+    if (_msgsEl && _msgsEl.classList.contains('saved-mode')) renderSavedView();
+  }
+  if (typeof tmRenderChannels === 'function') tmRenderChannels();
 }
 function setLang(l) {
   lang = l;

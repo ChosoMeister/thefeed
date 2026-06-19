@@ -342,6 +342,14 @@ function channelUnreadBadge(ch) {
 }
 
 async function selectChannel(num) {
+  // Exit saved messages view if active
+  if (typeof viewingSaved !== 'undefined' && viewingSaved) {
+    viewingSaved = false;
+    var savedEntry = document.getElementById('savedChannelBtn');
+    if (savedEntry) savedEntry.classList.remove('active');
+    var headerActions = document.querySelector('.chat-header-actions');
+    if (headerActions) headerActions.style.display = '';
+  }
   // Save lastSeen for previous channel and flush any pending sticky commit.
   if (selectedChannel > 0 && currentMaxTimestamp > 0) {
     var prevName = channelName(selectedChannel);

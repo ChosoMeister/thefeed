@@ -110,14 +110,33 @@
       .modal {
         width: 100%;
         max-width: 100%;
-        max-height: 100%;
-        border-radius: 0;
+        max-height: 92dvh;
+        border-radius: 20px 20px 0 0;
         border-left: none;
         border-right: none;
         border-bottom: none;
         margin-top: auto;
         align-self: flex-end;
-        padding-bottom: max(20px, calc(20px + env(safe-area-inset-bottom)))
+        padding-top: 20px;
+        padding-bottom: max(20px, calc(20px + env(safe-area-inset-bottom)));
+        animation: sheetIn 260ms cubic-bezier(0.32, 0.72, 0, 1) both
+      }
+
+      /* Drag handle pill at the top of every mobile bottom sheet */
+      .modal::before {
+        content: '';
+        display: block;
+        width: 36px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--border);
+        margin: 0 auto 16px;
+        opacity: 0.7;
+      }
+
+      @keyframes sheetIn {
+        from { transform: translateY(60px); opacity: 0; }
+        to   { transform: translateY(0);   opacity: 1; }
       }
 
       .modal-overlay.active {

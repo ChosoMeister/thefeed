@@ -35,6 +35,34 @@ type mediaDiskCache struct {
 	dir string
 	ttl time.Duration
 	mu  sync.Mutex
+
+	// crypto, when non-nil and unlocked, seals each entry's framed bytes
+	// (header‖mime‖body) at rest with AES-256-GCM. Set only on the savedMedia
+	// store; the ephemeral mediaCache leaves it nil (plaintext).
+	crypto *savedCrypto
+}
+
+// setCrypto swaps the at-rest crypto handle under c.mu so it doesn't race the
+// Get/Put readers (which snapshot it under the same lock).
+func (c *mediaDiskCache) setCrypto(sc *savedCrypto) {
+	c.mu.Lock()
+	c.crypto = sc
+	c.mu.Unlock()
+}
+
+// cryptoSnapshot returns the current crypto handle under c.mu. Callers use the
+// returned pointer for the whole operation so a concurrent setCrypto can't tear
+// the read.
+func (c *mediaDiskCache) cryptoSnapshot() *savedCrypto {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.crypto
+}
+
+// sealActiveFor reports whether at-rest sealing should be applied for the given
+// (snapshotted) crypto handle.
+func sealActiveFor(sc *savedCrypto) bool {
+	return sc != nil && !sc.locked
 }
 
 func newMediaDiskCache(dir string, ttl time.Duration) (*mediaDiskCache, error) {
@@ -67,7 +95,36 @@ func (c *mediaDiskCache) Get(size int64, crc uint32) (body []byte, mime string, 
 		return nil, "", false
 	}
 	data, err := os.ReadFile(path)
-	if err != nil || len(data) < 2 {
+	if err != nil {
+		return nil, "", false
+	}
+	sc := c.cryptoSnapshot()
+	if sealActiveFor(sc) {
+		if opened, oerr := openBytes(sc.dek, data); oerr == nil {
+			data = opened
+		} else {
+			// Migration path: a blob written by the pre-encryption feature is a
+			// plaintext frame. Try parsing it as-is; if valid, serve it and
+			// re-seal in place so the next read takes the fast path.
+			if b, m, okFrame := parseMediaFrame(data, size); okFrame {
+				_ = c.Put(size, crc, b, m) // re-seal
+				return b, m, true
+			}
+			return nil, "", false
+		}
+	}
+	b, m, okFrame := parseMediaFrame(data, size)
+	if !okFrame {
+		return nil, "", false
+	}
+	_ = os.Chtimes(path, time.Now(), time.Now())
+	return b, m, true
+}
+
+// parseMediaFrame decodes a header(2 BE mimeLen)‖mime‖body frame, validating
+// that the body length matches the content-addressed size.
+func parseMediaFrame(data []byte, size int64) (body []byte, mime string, ok bool) {
+	if len(data) < 2 {
 		return nil, "", false
 	}
 	mimeLen := int(binary.BigEndian.Uint16(data[:2]))
@@ -77,10 +134,8 @@ func (c *mediaDiskCache) Get(size int64, crc uint32) (body []byte, mime string, 
 	mime = string(data[2 : 2+mimeLen])
 	body = data[2+mimeLen:]
 	if int64(len(body)) != size {
-		// Corrupt or partial write — treat as miss.
-		return nil, "", false
+		return nil, "", false // corrupt or partial write
 	}
-	_ = os.Chtimes(path, time.Now(), time.Now())
 	return body, mime, true
 }
 
@@ -88,6 +143,13 @@ func (c *mediaDiskCache) Get(size int64, crc uint32) (body []byte, mime string, 
 func (c *mediaDiskCache) Put(size int64, crc uint32, body []byte, mime string) error {
 	if size <= 0 || crc == 0 || int64(len(body)) != size {
 		return errors.New("media cache: invalid put")
+	}
+	// Snapshot the crypto handle once for the whole operation.
+	sc := c.cryptoSnapshot()
+	// Never write a plaintext blob into a sealed store that's locked — it would
+	// both leak and desync the keyring.
+	if sc != nil && sc.locked {
+		return errSavedLocked
 	}
 	if len(body) > mediaCacheMaxFileExt {
 		return errors.New("media cache: body too large")
@@ -98,34 +160,30 @@ func (c *mediaDiskCache) Put(size int64, crc uint32, body []byte, mime string) e
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	// Frame as header(2 BE mimeLen)‖mime‖body, then seal the whole frame at
+	// rest if a crypto store is attached.
+	framed := make([]byte, 2+len(mime)+len(body))
+	binary.BigEndian.PutUint16(framed[:2], uint16(len(mime)))
+	copy(framed[2:], mime)
+	copy(framed[2+len(mime):], body)
+	if sealActiveFor(sc) {
+		framed = sealBytes(sc.dek, framed)
+	}
+
 	path := c.keyFile(size, crc)
 	tmp := path + ".tmp"
-	f, err := os.Create(tmp)
-	if err != nil {
-		return err
-	}
-	header := make([]byte, 2)
-	binary.BigEndian.PutUint16(header, uint16(len(mime)))
-	if _, err := f.Write(header); err != nil {
-		f.Close()
-		os.Remove(tmp)
-		return err
-	}
-	if _, err := f.Write([]byte(mime)); err != nil {
-		f.Close()
-		os.Remove(tmp)
-		return err
-	}
-	if _, err := f.Write(body); err != nil {
-		f.Close()
-		os.Remove(tmp)
-		return err
-	}
-	if err := f.Close(); err != nil {
+	if err := os.WriteFile(tmp, framed, 0o600); err != nil {
 		os.Remove(tmp)
 		return err
 	}
 	return os.Rename(tmp, path)
+}
+
+// Remove deletes the cache entry for (size, crc) if it exists.
+func (c *mediaDiskCache) Remove(size int64, crc uint32) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	_ = os.Remove(c.keyFile(size, crc))
 }
 
 // Cleanup removes entries older than ttl. Returns the count removed.

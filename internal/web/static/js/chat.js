@@ -791,6 +791,33 @@ function chatCopyMsg(btn) {
   if (txt) chatCopy(txt.textContent);
 }
 
+// chatForwardToSaved snapshots a chat bubble's (decrypted) text into Saved
+// Messages as a kind:"chat" item, tagged with the current contact name. Text is
+// read from the DOM, never inlined into the handler.
+async function chatForwardToSaved(btn) {
+  var msg = btn.closest ? btn.closest('.chat-msg') : null;
+  if (!msg) return;
+  var txtEl = msg.querySelector('.chat-msg-text');
+  var text = txtEl ? txtEl.textContent : '';
+  if (!text.trim()) return;
+  var nameEl = document.querySelector('.chat-peer-name');
+  var contactName = nameEl ? nameEl.textContent.trim() : '';
+  try {
+    var r = await fetch('/api/saved/from-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text, contactName: contactName })
+    });
+    if (typeof showToast === 'function') {
+      showToast(r.ok ? (t('saved_toast') || 'Forwarded to Saved') : (t('saved_save_failed') || 'Could not save'));
+    }
+    if (r.ok && typeof updateSavedBadge === 'function') updateSavedBadge();
+  } catch (e) {
+    if (typeof showToast === 'function') showToast(t('saved_save_failed') || 'Could not save');
+  }
+}
+window.chatForwardToSaved = chatForwardToSaved;
+
 async function chatShowRecovery() {
   var box = document.getElementById('chatRecoveryBox');
   if (!box) return;
@@ -1362,6 +1389,9 @@ async function chatRenderThread() {
       '<span class="chat-msg-meta">' +
       '<button type="button" class="chat-msg-copy"' +
       ' onclick="event.stopPropagation();chatCopyMsg(this)">' + esc(chatT('chat_copy')) + '</button>' +
+      '<button type="button" class="chat-msg-save" title="' + escAttr(t('forward_to_saved')) +
+      '" aria-label="' + escAttr(t('forward_to_saved')) +
+      '" onclick="event.stopPropagation();chatForwardToSaved(this)">' + icon('bookmark') + '</button>' +
       '<span class="chat-msg-time">' + chatFmtTime(m.ts) + ticks + '</span></span></div>' +
       '<div class="chat-clearfix"></div>';
   });
