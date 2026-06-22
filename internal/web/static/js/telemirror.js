@@ -1122,7 +1122,44 @@
       for (var k = a.attributes.length - 1; k >= 0; k--) {
         if (/^on/i.test(a.attributes[k].name)) a.removeAttribute(a.attributes[k].name);
       }
-      a.setAttribute('data-href', a.href);
+      var url = a.href;
+      // Telegram double-encodes & as &amp;amp; in embed hrefs; the
+      // browser decodes one level → &amp; remains in the resolved URL.
+      url = url.replace(/&amp;/g, '&');
+      var text = (a.textContent || '').trim();
+      if (text && /^https?:\/\//i.test(text) && text.length > url.length) {
+        url = text;
+      }
+      // Google Translate splits URLs at & boundaries — the <a> tag
+      // wraps only the first param and the rest leaks as trailing
+      // text/inline nodes. Stitch them back by consuming siblings
+      // that look like query-param continuations (&key=value...).
+      var sib = a.nextSibling;
+      while (sib) {
+        var chunk = '';
+        if (sib.nodeType === 3) { chunk = sib.textContent || ''; }
+        else if (sib.nodeType === 1 && sib.tagName !== 'BR') { chunk = sib.textContent || ''; }
+        else break;
+        // Must start with & and look like a query param continuation
+        if (/^&[A-Za-z0-9_]+=/.test(chunk)) {
+          // Might contain trailing text after the URL (newline, space, etc.)
+          var paramMatch = chunk.match(/^(&[A-Za-z0-9_]+=[^\s<>]*)/);
+          if (paramMatch) {
+            url += paramMatch[1];
+            var leftover = chunk.substring(paramMatch[1].length);
+            if (leftover) {
+              sib.textContent = leftover;
+              break;
+            }
+            var next = sib.nextSibling;
+            sib.parentNode.removeChild(sib);
+            sib = next;
+            continue;
+          }
+        }
+        break;
+      }
+      a.setAttribute('data-href', url);
       a.removeAttribute('href');
       a.removeAttribute('target');
       a.style.cursor = 'pointer';
@@ -1130,9 +1167,13 @@
   }
 
   // Parse a t.me URL → { user, postId } or null.
+  // Excludes special Telegram paths (proxy, socks, share, etc.)
+  var _tgSpecialPaths = /^(?:proxy|socks|share|addstickers|addemoji|addtheme|setlanguage|login|confirmphone|iv|joinchat|addlist|boost|contact|passport|premium|giftcode|invoice|stars|m|dl|bg|c)$/i;
   function tmParseTgLink(url) {
-    var m = url.match(/^https?:\/\/(?:t\.me|telegram\.me)\/([A-Za-z_][A-Za-z0-9_]{3,31})(?:\/(\d+))?(?:[?#].*)?$/);
-    return m ? { user: m[1], postId: m[2] || '' } : null;
+    var m = url.match(/^https?:\/\/(?:t\.me|telegram\.me)\/([A-Za-z_][A-Za-z0-9_]{3,31})(?:\/(\d+))?(?:\?[^#]*)?(?:#.*)?$/);
+    if (!m) return null;
+    if (_tgSpecialPaths.test(m[1])) return null;
+    return { user: m[1], postId: m[2] || '' };
   }
 
   // Scroll to a post by its numeric message ID. Returns true if found.

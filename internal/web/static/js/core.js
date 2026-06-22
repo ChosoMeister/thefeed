@@ -473,6 +473,39 @@ function triggerDownload(blob, filename) {
   setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 60000);
 }
 
+// showLinkSheet displays a bottom-sheet with the full URL, copy and
+// open-in-browser buttons. Used by the main feed and telemirror.
+function showLinkSheet(url) {
+  var old = document.getElementById('linkSheetOverlay');
+  if (old) old.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'linkSheetOverlay';
+  overlay.className = 'link-overlay';
+  overlay.innerHTML = '<div class="link-sheet">'
+    + '<div class="link-title">' + esc(t('telemirror_open_this_link') || 'Open this link?') + '</div>'
+    + '<div class="link-url" dir="ltr">' + esc(url) + '</div>'
+    + '<div class="link-actions">'
+    + '<button class="link-btn link-copy">' + esc(t('telemirror_copy_link') || 'Copy link') + '</button>'
+    + '<button class="link-btn link-open">' + esc(t('telemirror_open_link') || 'Open in browser') + '</button>'
+    + '</div></div>';
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) overlay.remove();
+  });
+  overlay.querySelector('.link-copy').onclick = function () {
+    try {
+      if (navigator.clipboard) { navigator.clipboard.writeText(url).catch(function () {}); }
+      else { var ta = document.createElement('textarea'); ta.value = url; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+    } catch (e) {}
+    showToast(t('copied') || 'Copied');
+    overlay.remove();
+  };
+  overlay.querySelector('.link-open').onclick = function () {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    overlay.remove();
+  };
+  document.body.appendChild(overlay);
+}
+
 // showInfoDialog is the one-button cousin of showConfirmDialog: a small
 // modal with a message and a single OK button. Used for explanatory
 // bits like "this file is too large for the server cache".
