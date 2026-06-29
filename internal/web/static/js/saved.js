@@ -891,32 +891,43 @@ async function downloadSavedMedia(btnEl, savedId, size, crcHex) {
   if (!rec) { btnEl.disabled = false; return; }
   var parsed = findMediaDescriptor(rec.text, size, crcHex);
   if (!parsed) { btnEl.disabled = false; showToast(t('msg_not_in_cache') || 'Unavailable'); return; }
+  // Pick the source the same way the feed does: prefer the GitHub relay (fast),
+  // fall back to DNS (slow). GH-only media has ch/blk == 0 — the fast path is
+  // keyed by size+crc, not channel, so it still works; hardcoding slow was the
+  // bug. A successful fetch is also served from the server cache by (size,crc),
+  // so a prior channel download is reused here too.
+  var sources = [];
+  if (parsed.githubAvailable) sources.push('fast');
+  if (parsed.dnsAvailable) sources.push('slow');
+  if (sources.length === 0) sources.push('slow');
   try {
-    var url = '/api/media/get?ch=' + parsed.channel + '&blk=' + parsed.blocks + '&size=' + parsed.size + '&crc=' + parsed.crc + '&source=slow';
-    var r = await fetch(url);
-    if (!r.ok) throw new Error('download failed');
-    await r.blob();
+    var ok = false;
+    for (var si = 0; si < sources.length; si++) {
+      var url = '/api/media/get?ch=' + parsed.channel + '&blk=' + parsed.blocks
+        + '&size=' + parsed.size + '&crc=' + parsed.crc + '&source=' + sources[si];
+      var r = await fetch(url);
+      if (r.ok) { await r.blob(); ok = true; break; }
+    }
+    if (!ok) throw new Error('download failed');
     await persistSavedMedia(size, crcHex);
     savedMessages = await getAllSaved();
     renderSavedView();
-  } catch (e) { btnEl.disabled = false; showToast(t('msg_not_in_cache') || 'Download failed'); }
+  } catch (e) { btnEl.disabled = false; showToast(t('media_failed') || 'Download failed'); }
 }
-// findMediaDescriptor walks the message text's sequential media tags (an album
-// is "[TAG]head\n[TAG]head\n…") and returns the descriptor whose (size, crc)
-// matches the clicked item — so downloading the Nth item fetches the Nth item,
-// not just the first.
+// findMediaDescriptor locates the descriptor whose (size, crc) matches the
+// clicked item. A structured media tag ("[TAG]size:flags:ch:blk:crc") can sit
+// anywhere in the text — after a caption, inside a [REPLY] wrapper, or as the
+// Nth item of an album — so we scan for every occurrence rather than assuming
+// it starts at position 0. We do NOT require ch/blk > 0: GH-relay-only media
+// legitimately has ch == blk == 0, and the caller fetches it via the fast path.
+var savedMediaTagRe = /\[(IMAGE|VIDEO|FILE|AUDIO|STICKER|GIF|CONTACT|LOCATION)\]\d+:[0-9,]+:\d+:\d+:[0-9a-fA-F]+/g;
 function findMediaDescriptor(text, size, crcHex) {
-  var tags = ['[IMAGE]', '[VIDEO]', '[FILE]', '[AUDIO]', '[STICKER]', '[GIF]', '[CONTACT]', '[LOCATION]'];
   var wantCrc = parseInt(crcHex, 16);
-  var rest = text;
-  while (rest) {
-    var matched = null;
-    for (var i = 0; i < tags.length; i++) { if (rest.indexOf(tags[i]) === 0) { matched = tags[i]; break; } }
-    if (!matched) break;
-    var p = parseDownloadableMedia(rest, matched);
-    if (!(p.size > 0 && p.channel > 0 && p.blocks > 0 && p.crc)) break;
-    if (p.size === size && parseInt(p.crc, 16) === wantCrc) return p;
-    rest = p.caption; // advance to the next media tag in the album
+  savedMediaTagRe.lastIndex = 0;
+  var m;
+  while ((m = savedMediaTagRe.exec(text)) !== null) {
+    var p = parseDownloadableMedia(text.substring(m.index), '[' + m[1] + ']');
+    if (p.size === size && p.crc && parseInt(p.crc, 16) === wantCrc) return p;
   }
   return null;
 }

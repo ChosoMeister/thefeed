@@ -297,7 +297,16 @@
     }
 
     .modal-overlay.active {
-      display: flex
+      display: flex;
+      /* Fade just the backdrop in (the .modal does its own modalIn scale). A
+         one-shot animation, not a state transition, so nothing can freeze
+         halfway; animating background-color keeps modal content fully opaque. */
+      animation: overlayFade var(--motion) var(--ease)
+    }
+
+    @keyframes overlayFade {
+      from { background-color: rgba(0, 0, 0, 0) }
+      to   { background-color: rgba(0, 0, 0, .65) }
     }
 
     .modal {

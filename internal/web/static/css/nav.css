@@ -75,6 +75,18 @@
       justify-content: center;
       width: 23px;
       height: 23px;
+      transition: transform var(--motion-fast) var(--ease);
+    }
+
+    /* Subtle pop on the selected tab + tactile press feedback. Transform-only
+       (GPU-cheap) and unrelated to the pane-swap state, so there's no
+       compositor-freeze risk. Press rule comes last so it wins while held. */
+    .nav-tab.active .nav-ic {
+      transform: scale(1.12);
+    }
+
+    .nav-tab:active .nav-ic {
+      transform: scale(0.9);
     }
 
     .nav-tab .nav-ic .icon,
@@ -1599,16 +1611,17 @@
     /* Physical right (the ×'s side) so the text always clears the button,
        whatever the text direction. */
     .tm-disclaimer-wrap .tm-disclaimer {
-      padding-right: 28px;
+      padding-right: 34px;
     }
 
-    /* Aligned to the disclaimer's own top-right corner (it has an 8px margin),
-       with a solid backing so it reads clearly over the card. */
+    /* Sit inside the card's rounded top-right corner: the card has an 8px margin,
+       so 16px from the wrap leaves a clean 8px inset clear of the radius. Plain
+       physical `right` (no logical override) keeps it top-right in both RTL/LTR;
+       the earlier inset-inline-end:auto flipped it to the wrong side in LTR. */
     .tm-disclaimer-x {
       position: absolute;
-      top: 12px;
-      right: 12px;
-      inset-inline-end: auto;
+      top: 16px;
+      right: 16px;
       width: 22px;
       height: 22px;
       padding: 0;

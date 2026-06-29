@@ -572,7 +572,9 @@ async function mediaRunDownload(domID, opts) {
     loaded: 0,
     total: parseInt(size, 10) || 0,
     completed: 0,
-    blocks: source === 'slow' ? (parseInt(blk, 10) || 0) : 0
+    blocks: source === 'slow' ? (parseInt(blk, 10) || 0) : 0,
+    // Relay (fast) is a single HTTP download, tracked in BYTES — never blocks.
+    byteOnly: source === 'fast'
   };
 
   var pollUrl = '/api/media/progress?ch=' + encodeURIComponent(ch)
@@ -584,9 +586,12 @@ async function mediaRunDownload(domID, opts) {
       if (!pr.ok) return;
       var pj = await pr.json();
       if (pj.active === false) return;
-      mediaApplyBlockProgress(card, pj.completed | 0, pj.total | 0);
+      // Relay reports bytes (pj.bytes); DNS reports blocks. Route each to its
+      // own monotonic channel so the bar reflects the right unit.
+      if (pj.bytes) mediaUpdateProgress(card, pj.completed | 0, pj.total | 0);
+      else mediaApplyBlockProgress(card, pj.completed | 0, pj.total | 0);
     } catch (e) { }
-  }, 500);
+  }, source === 'fast' ? 300 : 500);
 
   mediaInflight[msgID] = { ctrl: ctrl };
   mediaShowProgress(card);
@@ -607,7 +612,10 @@ function mediaShowProgress(card) {
   var domID = card.id;
   var totalSize = parseInt(card.getAttribute('data-size'), 10) || 0;
   var blocks = parseInt(card.getAttribute('data-blk'), 10) || 0;
-  var blocksSuffix = blocks > 0 ? ' &middot; 0/' + blocks + ' ' + (t('blocks_label') || 'blocks') : '';
+  // Relay (byteOnly) downloads aren't block-based — never show a block count.
+  var st0 = mediaProgressState[card.getAttribute('data-msg')];
+  var blocksSuffix = (blocks > 0 && !(st0 && st0.byteOnly))
+    ? ' &middot; 0/' + blocks + ' ' + (t('blocks_label') || 'blocks') : '';
   var initialText = (totalSize > 0 ? '0 / ' + formatBytes(totalSize) : (t('downloading') || 'Downloading...')) + blocksSuffix;
   card.classList.add('downloading');
   if (mediaIsImageTag(card.getAttribute('data-tag'))) {
@@ -689,7 +697,7 @@ function mediaRenderProgressState(card) {
   var head = s.total > 0
     ? formatBytes(s.loaded) + ' / ' + formatBytes(s.total) + ' (' + pct + '%)'
     : (s.loaded > 0 ? formatBytes(s.loaded) : (t('downloading') || 'Downloading...'));
-  var blocksSuffix = s.blocks > 0
+  var blocksSuffix = (s.blocks > 0 && !s.byteOnly)
     ? ' &middot; ' + s.completed + '/' + s.blocks + ' ' + (t('blocks_label') || 'blocks')
     : '';
   txt.innerHTML = head + blocksSuffix;
