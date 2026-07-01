@@ -360,6 +360,20 @@
       border-color: color-mix(in oklab, var(--accent) 35%, var(--border))
     }
 
+    /* Phones: let posts nearly fill the width. The 85% cap is centered (for RTL),
+       so on a narrow screen it left large symmetric side gaps that read as too
+       much empty space. Match the feed's mobile treatment (~full width). */
+    @media (max-width: 768px) {
+      .tm-content {
+        padding-left: 12px;
+        padding-right: 12px
+      }
+
+      .tm-post {
+        max-width: 100%
+      }
+    }
+
     /* Brief highlight when "jump to post" lands on a saved Telemirror post. */
     .tm-post-highlight {
       border-color: var(--accent);
