@@ -16,7 +16,10 @@
 definitions:
   # Pinned Go toolchain (must match go.mod). Codemagic mac machines are
   # Apple-silicon, so we fetch the darwin-arm64 tarball.
-  go_version: &go_version "1.26.1"
+  # Keep ≥ 1.26.9: earlier 1.26.x patches have a Go runtime bug that crashes
+  # 32-bit ARM Android 8–10 devices at startup (fixed upstream in the 1.26.9
+  # runtime). The Play AAB's armeabi-v7a split hit this on MIUI/Android 9.
+  go_version: &go_version "1.26.9"
 
   scripts:
     - &derive_version
@@ -42,7 +45,7 @@ definitions:
       name: Install Go + gomobile
       script: |
         set -e
-        GO_VERSION="1.26.1"
+        GO_VERSION="1.26.9"  # keep in sync with go_version above (Android 32-bit crash fix)
         curl -fsSL "https://go.dev/dl/go${GO_VERSION}.darwin-arm64.tar.gz" -o /tmp/go.tgz
         sudo rm -rf /usr/local/go
         sudo tar -C /usr/local -xzf /tmp/go.tgz

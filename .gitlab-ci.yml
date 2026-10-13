@@ -279,7 +279,9 @@ android-apk:
     # this NDK up via ANDROID_NDK_HOME.
     ANDROID_NDK_RELEASE: "r28b"
     ANDROID_NDK_HOME: "$CI_PROJECT_DIR/.android-ndk"
-    GO_VERSION: "1.26.0"
+    # ≥ 1.26.9: earlier patches crash 32-bit ARM Android 8–10 at startup
+    # (Go runtime bug, fixed in the 1.26.9 runtime).
+    GO_VERSION: "1.26.9"
   cache:
     - key: "gradle"
       paths:
